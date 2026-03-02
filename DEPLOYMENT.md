@@ -50,12 +50,54 @@ sudo chmod -R 755 /var/www/novatech
 
 ### 3. Clone Repository
 
+**Option A: Safe Automated Deployment (Recommended - Won't Break Existing Projects)**
+
 ```bash
+# Download and run the SAFE deployment script
+cd /tmp
+wget https://raw.githubusercontent.com/codeswindler/votingnova/main/deploy-safe.sh
+chmod +x deploy-safe.sh
+sudo bash deploy-safe.sh
+```
+
+**Why use deploy-safe.sh?**
+- ✅ Checks for existing Apache sites and won't disable them
+- ✅ Checks if ports are in use (Apache handles multiple sites on same ports)
+- ✅ Won't break existing projects
+- ✅ Only adds new virtual host, doesn't replace existing ones
+- ✅ Checks if services are already running
+- ✅ Asks for confirmation before proceeding
+
+**Option B: Standard Automated Deployment**
+
+```bash
+# Download and run the standard deployment script
+cd /tmp
+wget https://raw.githubusercontent.com/codeswindler/votingnova/main/deploy.sh
+chmod +x deploy.sh
+sudo bash deploy.sh
+```
+
+The script will:
+- Install all required packages
+- Create the directory structure
+- Clone the repository
+- Set up database
+- Configure Apache
+- Set permissions
+- Configure firewall
+
+**Option B: Manual Deployment**
+
+```bash
+# Create directory
+sudo mkdir -p /var/www/novatech
+sudo chown -R $USER:www-data /var/www/novatech
+sudo chmod -R 755 /var/www/novatech
+
+# Clone repository
 cd /var/www/novatech
 git clone https://github.com/codeswindler/votingnova.git .
-
-# Or if you prefer a different branch:
-# git clone -b production https://github.com/codeswindler/votingnova.git .
 ```
 
 ### 4. Configure Environment
