@@ -208,11 +208,9 @@ $categoriesWithCounts = $stmt->fetchAll();
                                                 <td><?php echo $cat['female_count']; ?></td>
                                                 <td><?php echo $cat['male_count'] + $cat['female_count']; ?></td>
                                                 <td onclick="event.stopPropagation();">
-                                                    <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this category and all its nominees?');">
-                                                        <input type="hidden" name="action" value="delete_category">
-                                                        <input type="hidden" name="id" value="<?php echo $cat['id']; ?>">
-                                                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                                    </form>
+                                                    <button type="button" class="btn btn-sm btn-danger" onclick="deleteCategory(<?php echo $cat['id']; ?>, '<?php echo htmlspecialchars(addslashes($cat['name'])); ?>', <?php echo $cat['male_count'] + $cat['female_count']; ?>)">
+                                                        Delete
+                                                    </button>
                                                 </td>
                                             </tr>
                                             <tr class="nominees-row" id="nominees-<?php echo $cat['id']; ?>" style="display: none;">
@@ -276,6 +274,31 @@ $categoriesWithCounts = $stmt->fetchAll();
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        .undo-notification {
+            animation: slideInRight 0.3s ease-out;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .blink {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
     <script>
         // Category row click handler
         document.querySelectorAll('.category-row').forEach(row => {
@@ -349,7 +372,7 @@ $categoriesWithCounts = $stmt->fetchAll();
                                 <button class="btn btn-sm btn-outline-primary me-1" onclick="editNominee(${nominee.id}, '${escapeHtml(nominee.name)}', '${nominee.gender}', ${categoryId})">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteNominee(${nominee.id}, ${categoryId})">
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteNominee(${nominee.id}, ${categoryId}, '${escapeHtml(nominee.name)}')">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
@@ -375,7 +398,7 @@ $categoriesWithCounts = $stmt->fetchAll();
                                 <button class="btn btn-sm btn-outline-primary me-1" onclick="editNominee(${nominee.id}, '${escapeHtml(nominee.name)}', '${nominee.gender}', ${categoryId})">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteNominee(${nominee.id}, ${categoryId})">
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteNominee(${nominee.id}, ${categoryId}, '${escapeHtml(nominee.name)}')">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
@@ -444,12 +467,98 @@ $categoriesWithCounts = $stmt->fetchAll();
             });
         }
         
-        // Delete nominee
-        function deleteNominee(nomineeId, categoryId) {
-            if (!confirm('Are you sure you want to delete this nominee?')) {
+        // Pending deletions storage
+        const pendingDeletions = new Map();
+        
+        // Delete category with 30-second undo
+        function deleteCategory(categoryId, categoryName, nomineeCount) {
+            const warning = nomineeCount > 0 
+                ? `⚠️ WARNING: This will delete the category "${categoryName}" and ALL ${nomineeCount} nominees permanently!\n\nThis action cannot be undone after 30 seconds.`
+                : `⚠️ WARNING: This will delete the category "${categoryName}" permanently!\n\nThis action cannot be undone after 30 seconds.`;
+            
+            if (!confirm(warning)) {
                 return;
             }
             
+            // Store pending deletion
+            const deletionId = 'cat_' + categoryId + '_' + Date.now();
+            const timer = setTimeout(() => {
+                executeCategoryDeletion(categoryId);
+                pendingDeletions.delete(deletionId);
+            }, 30000);
+            
+            pendingDeletions.set(deletionId, {
+                type: 'category',
+                id: categoryId,
+                name: categoryName,
+                timer: timer,
+                execute: () => executeCategoryDeletion(categoryId)
+            });
+            
+            // Show undo notification
+            showUndoNotification(deletionId, `Category "${categoryName}" will be deleted in 30 seconds...`, 'category');
+        }
+        
+        // Execute category deletion
+        function executeCategoryDeletion(categoryId) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.innerHTML = `
+                <input type="hidden" name="action" value="delete_category">
+                <input type="hidden" name="id" value="${categoryId}">
+            `;
+            document.body.appendChild(form);
+            form.submit();
+        }
+        
+        // Delete nominee with 30-second undo
+        function deleteNominee(nomineeId, categoryId, nomineeName = '') {
+            const warning = `⚠️ WARNING: This will delete the nominee "${nomineeName || 'this nominee'}" permanently!\n\nThis action cannot be undone after 30 seconds.`;
+            
+            if (!confirm(warning)) {
+                return;
+            }
+            
+            // Get nominee name if not provided
+            if (!nomineeName) {
+                fetch(`/api/manage-nominees-api.php?action=list&category_id=${categoryId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            const nominee = data.nominees.find(n => n.id == nomineeId);
+                            if (nominee) {
+                                proceedWithNomineeDeletion(nomineeId, categoryId, nominee.name);
+                            }
+                        }
+                    });
+            } else {
+                proceedWithNomineeDeletion(nomineeId, categoryId, nomineeName);
+            }
+        }
+        
+        // Proceed with nominee deletion
+        function proceedWithNomineeDeletion(nomineeId, categoryId, nomineeName) {
+            const deletionId = 'nom_' + nomineeId + '_' + Date.now();
+            const timer = setTimeout(() => {
+                executeNomineeDeletion(nomineeId, categoryId);
+                pendingDeletions.delete(deletionId);
+            }, 30000);
+            
+            pendingDeletions.set(deletionId, {
+                type: 'nominee',
+                id: nomineeId,
+                categoryId: categoryId,
+                name: nomineeName,
+                timer: timer,
+                execute: () => executeNomineeDeletion(nomineeId, categoryId)
+            });
+            
+            // Show undo notification
+            showUndoNotification(deletionId, `Nominee "${nomineeName}" will be deleted in 30 seconds...`, 'nominee');
+        }
+        
+        // Execute nominee deletion
+        function executeNomineeDeletion(nomineeId, categoryId) {
             const formData = new FormData();
             formData.append('action', 'delete');
             formData.append('nominee_id', nomineeId);
@@ -463,7 +572,6 @@ $categoriesWithCounts = $stmt->fetchAll();
                 if (data.success) {
                     loadNominees(categoryId);
                     showAlert('success', data.message || 'Nominee deleted successfully!');
-                    // Reload page to update counts
                     setTimeout(() => location.reload(), 1000);
                 } else {
                     showAlert('danger', data.error || 'Failed to delete nominee');
@@ -472,6 +580,93 @@ $categoriesWithCounts = $stmt->fetchAll();
             .catch(err => {
                 showAlert('danger', 'Error: ' + err.message);
             });
+        }
+        
+        // Show undo notification with countdown
+        function showUndoNotification(deletionId, message, type) {
+            const container = document.getElementById('undoContainer') || createUndoContainer();
+            
+            let timeLeft = 30;
+            const notificationId = 'undo-' + deletionId;
+            
+            const notification = document.createElement('div');
+            notification.id = notificationId;
+            notification.className = 'alert alert-warning alert-dismissible fade show undo-notification';
+            notification.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000; min-width: 350px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
+            
+            const countdownSpan = document.createElement('span');
+            countdownSpan.id = 'countdown-' + deletionId;
+            countdownSpan.className = 'fw-bold';
+            
+            notification.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <div class="flex-grow-1">
+                        <div>${message}</div>
+                        <div class="mt-1">
+                            <small>Deleting in: <span id="countdown-${deletionId}" class="fw-bold text-danger">${timeLeft}</span> seconds</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-success ms-2" onclick="undoDeletion('${deletionId}')">
+                        <i class="bi bi-arrow-counterclockwise"></i> Undo
+                    </button>
+                    <button type="button" class="btn-close ms-2" onclick="cancelDeletion('${deletionId}')"></button>
+                </div>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Update countdown
+            const countdownInterval = setInterval(() => {
+                timeLeft--;
+                const countdownEl = document.getElementById('countdown-' + deletionId);
+                if (countdownEl) {
+                    countdownEl.textContent = timeLeft;
+                    if (timeLeft <= 5) {
+                        countdownEl.className = 'fw-bold text-danger blink';
+                    }
+                }
+                
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                }
+            }, 1000);
+            
+            // Store interval for cleanup
+            if (!pendingDeletions.has(deletionId)) return;
+            const deletion = pendingDeletions.get(deletionId);
+            deletion.countdownInterval = countdownInterval;
+            deletion.notificationElement = notification;
+        }
+        
+        // Create undo container
+        function createUndoContainer() {
+            const container = document.createElement('div');
+            container.id = 'undoContainer';
+            container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000;';
+            document.body.appendChild(container);
+            return container;
+        }
+        
+        // Undo deletion
+        function undoDeletion(deletionId) {
+            const deletion = pendingDeletions.get(deletionId);
+            if (deletion) {
+                clearTimeout(deletion.timer);
+                if (deletion.countdownInterval) {
+                    clearInterval(deletion.countdownInterval);
+                }
+                if (deletion.notificationElement) {
+                    deletion.notificationElement.remove();
+                }
+                pendingDeletions.delete(deletionId);
+                showAlert('success', `Deletion cancelled. ${deletion.type === 'category' ? 'Category' : 'Nominee'} "${deletion.name}" is safe.`);
+            }
+        }
+        
+        // Cancel deletion (close button)
+        function cancelDeletion(deletionId) {
+            undoDeletion(deletionId);
         }
         
         // Utility functions
