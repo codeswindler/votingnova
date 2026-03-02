@@ -84,6 +84,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Delete category (no nominees exist)
                     $stmt = $db->prepare("DELETE FROM categories WHERE id = ?");
                     $stmt->execute([$id]);
+                    
+                    // Reset AUTO_INCREMENT to maintain sequential IDs
+                    // Get the maximum ID currently in use
+                    $maxStmt = $db->query("SELECT COALESCE(MAX(id), 0) as max_id FROM categories");
+                    $maxResult = $maxStmt->fetch();
+                    $nextId = ($maxResult['max_id'] ?? 0) + 1;
+                    
+                    // Reset AUTO_INCREMENT to next sequential ID
+                    $db->exec("ALTER TABLE categories AUTO_INCREMENT = $nextId");
+                    
                     $_SESSION['flash_message'] = "Category deleted successfully!";
                 }
             } catch (Exception $e) {
