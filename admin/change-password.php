@@ -24,11 +24,10 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $currentPassword = $_POST['current_password'] ?? '';
     $newPassword = $_POST['new_password'] ?? '';
     $confirmPassword = $_POST['confirm_password'] ?? '';
     
-    if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
+    if (empty($newPassword) || empty($confirmPassword)) {
         $error = 'All fields are required';
     } elseif ($newPassword !== $confirmPassword) {
         $error = 'New password and confirmation do not match';
@@ -38,24 +37,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userId = Auth::getUserId();
         $userService = new UserService();
         
-        // Verify current password
-        $verifyResult = $userService->verifyPassword($userId, $currentPassword);
+        // Change password (no need to verify current password for first-time login)
+        $changeResult = $userService->changePassword($userId, $newPassword);
         
-        if ($verifyResult['success']) {
-            // Change password
-            $changeResult = $userService->changePassword($userId, $newPassword);
+        if ($changeResult['success']) {
+            // Clear must_change_password flag from session
+            $_SESSION['must_change_password'] = false;
             
-            if ($changeResult['success']) {
-                // Clear must_change_password flag from session
-                $_SESSION['must_change_password'] = false;
-                
-                $success = 'Password changed successfully! Redirecting to dashboard...';
-                header('Refresh: 2; url=/admin/dashboard.php');
-            } else {
-                $error = $changeResult['message'] ?? 'Failed to change password';
-            }
+            $success = 'Password changed successfully! Redirecting to dashboard...';
+            header('Refresh: 2; url=/admin/dashboard.php');
         } else {
-            $error = 'Current password is incorrect';
+            $error = $changeResult['message'] ?? 'Failed to change password';
         }
     }
 }
@@ -98,13 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php else: ?>
                             <form method="POST">
                                 <div class="mb-3">
-                                    <label for="current_password" class="form-label">Current Password</label>
-                                    <input type="password" class="form-control" id="current_password" name="current_password" required autofocus>
-                                </div>
-                                
-                                <div class="mb-3">
                                     <label for="new_password" class="form-label">New Password</label>
-                                    <input type="password" class="form-control" id="new_password" name="new_password" required minlength="8">
+                                    <input type="password" class="form-control" id="new_password" name="new_password" required minlength="8" autofocus>
                                     <small class="text-muted">Must be at least 8 characters long</small>
                                 </div>
                                 
