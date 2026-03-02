@@ -1,0 +1,119 @@
+==========================================
+EXACT COMMANDS TO RUN ON VPS
+==========================================
+Copy and paste these commands one by one, or save as script
+
+# ============================================
+# OPTION 1: Automated (Recommended)
+# ============================================
+# Download and run the complete deployment script:
+
+cd /tmp
+wget https://raw.githubusercontent.com/codeswindler/votingnova/main/deploy.sh
+chmod +x deploy.sh
+sudo bash deploy.sh
+
+# ============================================
+# OPTION 2: Manual Step-by-Step
+# ============================================
+
+# 1. Install packages
+sudo apt update && sudo apt install -y apache2 mysql-server php php-mysql php-curl php-json php-mbstring git curl
+
+# 2. Enable Apache modules
+sudo a2enmod rewrite ssl headers
+
+# 3. Create directory and clone
+sudo mkdir -p /var/www/novatech
+sudo chown -R $USER:www-data /var/www/novatech
+cd /var/www/novatech
+git clone https://github.com/codeswindler/votingnova.git .
+
+# 4. Setup environment
+cp env.example .env
+nano .env  # Edit with your production credentials
+
+# 5. Create database (replace 'your_root_password' with MySQL root password)
+sudo mysql -u root -p <<EOF
+CREATE DATABASE votingnova CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'votingnova_user'@'localhost' IDENTIFIED BY 'your_secure_db_password';
+GRANT ALL PRIVILEGES ON votingnova.* TO 'votingnova_user'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+
+# 6. Import database schema (replace 'your_root_password')
+mysql -u root -p votingnova < database/schema.sql
+mysql -u root -p votingnova < database/migrate_user_tables.sql
+mysql -u root -p votingnova < database/migrate_user_passwords.sql
+mysql -u root -p votingnova < database/seed_settings.sql
+
+# 7. Create Apache virtual host
+sudo tee /etc/apache2/sites-available/voting-nova.conf > /dev/null <<'EOF'
+<VirtualHost *:80>
+    ServerName voting.novotechafrica.co.ke
+    ServerAlias www.voting.novotechafrica.co.ke
+    DocumentRoot /var/www/novatech
+
+    <Directory /var/www/novatech>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/voting-nova-error.log
+    CustomLog ${APACHE_LOG_DIR}/voting-nova-access.log combined
+</VirtualHost>
+EOF
+
+# 8. Enable site
+sudo a2ensite voting-nova.conf
+sudo a2dissite 000-default.conf
+sudo systemctl reload apache2
+
+# 9. Set permissions
+sudo chown -R www-data:www-data /var/www/novatech
+sudo find /var/www/novatech -type d -exec chmod 755 {} \;
+sudo find /var/www/novatech -type f -exec chmod 644 {} \;
+sudo chmod 640 /var/www/novatech/.env
+
+# 10. Configure firewall
+sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw --force enable
+
+# 11. Install SSL (Let's Encrypt)
+sudo apt install -y certbot python3-certbot-apache
+sudo certbot --apache -d voting.novotechafrica.co.ke -d www.voting.novotechafrica.co.ke
+
+# ============================================
+# VERIFICATION
+# ============================================
+
+# Check Apache status
+sudo systemctl status apache2
+
+# Check if site is accessible
+curl -I http://voting.novotechafrica.co.ke
+
+# Check database connection
+mysql -u votingnova_user -p votingnova -e "SHOW TABLES;"
+
+# ============================================
+# IMPORTANT CONFIGURATIONS
+# ============================================
+
+# Update .env file with:
+# - Database credentials (from step 5)
+# - M-Pesa production credentials
+# - Advanta SMS credentials
+# - Admin username/password
+# - APP_URL=https://voting.novotechafrica.co.ke
+# - APP_ENV=production
+# - APP_DEBUG=false
+
+# Configure Advanta USSD Callback:
+# URL: https://voting.novotechafrica.co.ke/api/ussd.php
+
+# Configure M-Pesa Callback:
+# URL: https://voting.novotechafrica.co.ke/api/mpesa-callback.php
