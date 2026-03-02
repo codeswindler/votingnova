@@ -30,7 +30,8 @@ try {
             break;
         
         case 'winners':
-            echo json_encode(getWinners($db));
+            $categoryId = (int)($_GET['category_id'] ?? 0);
+            echo json_encode(getWinners($db, $categoryId));
             break;
         
         case 'votes-by-category':
@@ -203,12 +204,22 @@ function getTransactions($db) {
  * For local testing: Counts ALL simulated votes (pending + completed)
  * Only includes simulated votes (transaction_id starting with 'SIM-')
  */
-function getWinners($db) {
-    $stmt = $db->query("
-        SELECT c.id as category_id, c.name as category_name
-        FROM categories c
-        ORDER BY c.id
-    ");
+function getWinners($db, $categoryId = 0) {
+    if ($categoryId > 0) {
+        $stmt = $db->prepare("
+            SELECT c.id as category_id, c.name as category_name
+            FROM categories c
+            WHERE c.id = ?
+            ORDER BY c.id
+        ");
+        $stmt->execute([$categoryId]);
+    } else {
+        $stmt = $db->query("
+            SELECT c.id as category_id, c.name as category_name
+            FROM categories c
+            ORDER BY c.id
+        ");
+    }
     $categories = $stmt->fetchAll();
     
     $winners = [];

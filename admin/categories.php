@@ -120,10 +120,16 @@ $selectedCategory = (int)($_GET['category'] ?? 0);
                     displayLeaderboard(data);
                     updateCharts(data);
                 });
+            // Also reload winners with the same filter
+            loadWinners();
         }
         
         function loadWinners() {
-            fetch('/api/admin-api.php?action=winners')
+            const categoryId = document.getElementById('categoryFilter').value;
+            const url = categoryId > 0 
+                ? `/api/admin-api.php?action=winners&category_id=${categoryId}`
+                : '/api/admin-api.php?action=winners';
+            fetch(url)
                 .then(r => r.json())
                 .then(data => {
                     displayWinners(data);
