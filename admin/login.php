@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['otp_code'])) {
             $_SESSION['must_change_password'] = $_SESSION['pending_must_change_password'] ?? false;
             
             // Clear pending session data
+            $mustChangePassword = $_SESSION['pending_must_change_password'] ?? false;
             unset($_SESSION['pending_user_id']);
             unset($_SESSION['pending_username']);
             unset($_SESSION['pending_name']);
@@ -40,6 +41,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['otp_code'])) {
             unset($_SESSION['pending_must_change_password']);
             unset($_SESSION['pending_phone']);
             
+            // Check if password change is required
+            if ($mustChangePassword) {
+                header('Location: /admin/change-password.php');
+                exit;
+            }
             header('Location: /admin/dashboard.php');
             exit;
         } else {
@@ -100,6 +106,12 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Redirect if already logged in
 if (Auth::isLoggedIn()) {
+    // Check if password change is required
+    if (isset($_SESSION['must_change_password']) && $_SESSION['must_change_password'] && 
+        isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'system_user') {
+        header('Location: /admin/change-password.php');
+        exit;
+    }
     header('Location: /admin/dashboard.php');
     exit;
 }
