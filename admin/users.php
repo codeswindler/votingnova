@@ -182,7 +182,15 @@ Auth::requireLogin();
                 return;
             }
 
-            tbody.innerHTML = users.map(user => `
+            // Get current user ID and type
+            const currentUserId = <?php echo json_encode(Auth::getUserId()); ?>;
+            const currentUserType = <?php echo json_encode($_SESSION['user_type'] ?? null); ?>;
+            
+            tbody.innerHTML = users.map(user => {
+                // Hide delete button if user is trying to delete themselves
+                const canDelete = !(currentUserType === 'system_user' && currentUserId == user.id);
+                
+                return `
                 <tr>
                     <td>${user.id}</td>
                     <td>${user.phone}</td>
@@ -209,12 +217,13 @@ Auth::requireLogin();
                         <button class="btn btn-sm btn-primary" onclick="editUser(${user.id})" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})" title="Delete">
+                        ${canDelete ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})" title="Delete">
                             <i class="bi bi-trash"></i>
-                        </button>
+                        </button>` : '<span class="text-muted" title="You cannot delete your own account">-</span>'}
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function updatePagination(total) {
