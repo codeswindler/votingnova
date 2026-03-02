@@ -3,6 +3,7 @@
  * User Service - Handles user password generation and credential sending
  */
 
+require_once __DIR__ . '/env.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/../config/advanta.php';
 
@@ -94,7 +95,11 @@ class UserService {
             }
         }
 
-        $message = "Hello {$name}, your Voting System credentials have been created. Username: {$phone}, Password: {$password}. Please change your password on first login.";
+        // Get login URL from environment
+        $appUrl = getenv('APP_URL') ?: 'https://voting.novotechafrica.co.ke';
+        $loginUrl = rtrim($appUrl, '/') . '/admin/login.php';
+        
+        $message = "Hello {$name}, your Voting System credentials have been created. Username: {$phone}, Password: {$password}. Login: {$loginUrl} Please change your password on first login.";
 
         $data = [
             'apikey' => $this->smsConfig['api_key'],
@@ -245,11 +250,15 @@ class UserService {
             }
         }
 
-        $message = "Hello {$name}, your password has been reset. Temporary password: {$tempPassword}. Username: {$phone}. Please login and change your password immediately.";
+        // Get login URL from environment
+        $appUrl = getenv('APP_URL') ?: 'https://voting.novotechafrica.co.ke';
+        $loginUrl = rtrim($appUrl, '/') . '/admin/login.php';
+        
+        $message = "Hello {$name}, your password has been reset. Temporary password: {$tempPassword}. Username: {$phone}. Login: {$loginUrl} Please login and change your password immediately.";
 
         $data = [
-            'api_key' => $this->smsConfig['api_key'],
-            'partner_id' => $this->smsConfig['partner_id'],
+            'apikey' => $this->smsConfig['api_key'],
+            'partnerID' => $this->smsConfig['partner_id'],
             'shortcode' => $this->smsConfig['shortcode'],
             'message' => $message,
             'mobile' => $phone
@@ -271,8 +280,21 @@ class UserService {
 
         if ($httpCode === 200) {
             $result = json_decode($response, true);
-            if (isset($result['status']) && $result['status'] === 'success') {
-                return true;
+            
+            // Handle success response format: {"responses": [{"response-code": 200, ...}]}
+            if (isset($result['responses']) && is_array($result['responses']) && count($result['responses']) > 0) {
+                $firstResponse = $result['responses'][0];
+                if (isset($firstResponse['response-code']) && $firstResponse['response-code'] === 200) {
+                    error_log("Password Reset SMS: Successfully sent to $phone, MessageID: " . ($firstResponse['messageid'] ?? 'N/A'));
+                    return true;
+                }
+            }
+            
+            // Handle error response format: {"response-code": 1006, "response-description": "..."}
+            if (isset($result['response-code']) && $result['response-code'] !== 200) {
+                $errorDesc = $result['response-description'] ?? 'Unknown error';
+                error_log("Password Reset SMS Error: Code {$result['response-code']}, Description: $errorDesc");
+                return false;
             }
         }
 
