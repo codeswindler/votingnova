@@ -205,16 +205,26 @@ class USSDHandler {
      * State 0: Show categories
      */
     private function showCategories() {
-        $stmt = $this->db->query("SELECT id, name FROM categories ORDER BY id");
-        $categories = $stmt->fetchAll();
+        try {
+            $stmt = $this->db->query("SELECT id, name FROM categories ORDER BY id");
+            $categories = $stmt->fetchAll();
 
-        $message = "Support your champion! Vote now in the Murang'a 40 Under 40 Awards:\n";
-        foreach ($categories as $cat) {
-            $message .= $cat['id'] . ". " . $cat['name'] . "\n";
+            if (empty($categories)) {
+                error_log("USSD Warning: No categories found in database");
+                return "END No categories available. Please contact administrator.";
+            }
+
+            $message = "Support your champion! Vote now in the Murang'a 40 Under 40 Awards:\n";
+            foreach ($categories as $cat) {
+                $message .= $cat['id'] . ". " . $cat['name'] . "\n";
+            }
+
+            $this->updateSession(['state' => 1]);
+            return "CON " . $message;
+        } catch (Exception $e) {
+            error_log("USSD showCategories Error: " . $e->getMessage());
+            return "END An error occurred while loading categories. Please try again later.";
         }
-
-        $this->updateSession(['state' => 1]);
-        return "CON " . $message;
     }
 
     /**
