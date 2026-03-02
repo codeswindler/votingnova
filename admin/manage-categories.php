@@ -7,9 +7,24 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 Auth::requireLogin();
 
+// Start session for flash messages
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 $db = getDB();
 $message = '';
 $error = '';
+
+// Get flash messages from session
+if (isset($_SESSION['flash_message'])) {
+    $message = $_SESSION['flash_message'];
+    unset($_SESSION['flash_message']);
+}
+if (isset($_SESSION['flash_error'])) {
+    $error = $_SESSION['flash_error'];
+    unset($_SESSION['flash_error']);
+}
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -21,13 +36,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $stmt = $db->prepare("INSERT INTO categories (name) VALUES (?)");
                 $stmt->execute([$name]);
-                $message = "Category '$name' added successfully!";
+                $_SESSION['flash_message'] = "Category '$name' added successfully!";
             } catch (Exception $e) {
-                $error = "Error adding category: " . $e->getMessage();
+                $_SESSION['flash_error'] = "Error adding category: " . $e->getMessage();
             }
         } else {
-            $error = "Category name is required";
+            $_SESSION['flash_error'] = "Category name is required";
         }
+        // Redirect to prevent form resubmission
+        header('Location: ' . $_SERVER['PHP_SELF']);
+        exit;
     }
     
     if ($action === 'add_nominee') {
@@ -39,13 +57,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $stmt = $db->prepare("INSERT INTO nominees (category_id, name, gender) VALUES (?, ?, ?)");
                 $stmt->execute([$categoryId, $name, $gender]);
-                $message = "Nominee '$name' added successfully!";
+                $_SESSION['flash_message'] = "Nominee '$name' added successfully!";
             } catch (Exception $e) {
-                $error = "Error adding nominee: " . $e->getMessage();
+                $_SESSION['flash_error'] = "Error adding nominee: " . $e->getMessage();
             }
         } else {
-            $error = "All fields are required";
+            $_SESSION['flash_error'] = "All fields are required";
         }
+        // Redirect to prevent form resubmission
+        header('Location: ' . $_SERVER['PHP_SELF']);
+        exit;
     }
     
     if ($action === 'delete_category') {
@@ -58,17 +79,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $result = $stmt->fetch();
                 
                 if ($result && $result['nominee_count'] > 0) {
-                    $error = "Cannot delete category. This category has " . $result['nominee_count'] . " nominee(s). Please delete all nominees first.";
+                    $_SESSION['flash_error'] = "Cannot delete category. This category has " . $result['nominee_count'] . " nominee(s). Please delete all nominees first.";
                 } else {
                     // Delete category (no nominees exist)
                     $stmt = $db->prepare("DELETE FROM categories WHERE id = ?");
                     $stmt->execute([$id]);
-                    $message = "Category deleted successfully!";
+                    $_SESSION['flash_message'] = "Category deleted successfully!";
                 }
             } catch (Exception $e) {
-                $error = "Error deleting category: " . $e->getMessage();
+                $_SESSION['flash_error'] = "Error deleting category: " . $e->getMessage();
             }
         }
+        // Redirect to prevent form resubmission
+        header('Location: ' . $_SERVER['PHP_SELF']);
+        exit;
     }
 }
 
