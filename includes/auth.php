@@ -27,8 +27,20 @@ class Auth {
 
     /**
      * Login user (checks both admin_users and system_users)
+     * @deprecated Use attemptLogin() instead for OTP support
      */
     public static function login($username, $password) {
+        $result = self::attemptLogin($username, $password);
+        if ($result['success'] && !$result['otp_required']) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Attempt login and return detailed result (supports OTP)
+     */
+    public static function attemptLogin($username, $password) {
         $db = getDB();
         
         // First, try admin_users table
@@ -37,6 +49,7 @@ class Auth {
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
+            // Admin users don't need OTP
             $_SESSION['admin_id'] = $user['id'];
             $_SESSION['admin_username'] = $user['username'];
             $_SESSION['admin_name'] = $user['full_name'];
@@ -46,7 +59,14 @@ class Auth {
             $updateStmt = $db->prepare("UPDATE admin_users SET last_login = NOW() WHERE id = ?");
             $updateStmt->execute([$user['id']]);
             
-            return true;
+            return [
+                'success' => true,
+                'otp_required' => false,
+                'user_id' => $user['id'],
+                'username' => $user['username'],
+                'name' => $user['full_name'],
+                'user_type' => 'admin'
+            ];
         }
         
         // If not found in admin_users, try system_users table (phone as username)
@@ -59,7 +79,7 @@ class Auth {
         }
         
         $stmt = $db->prepare("
-            SELECT id, phone, password_hash, full_name, is_active, must_change_password 
+            SELECT id, phone, password_hash, first_name, last_name, is_active, must_change_password, otp_enabled 
             FROM system_users 
             WHERE (phone = ? OR phone = ?) AND is_active = 1
         ");
@@ -67,16 +87,53 @@ class Auth {
         $systemUser = $stmt->fetch();
 
         if ($systemUser && $systemUser['password_hash'] && password_verify($password, $systemUser['password_hash'])) {
-            $_SESSION['admin_id'] = $systemUser['id'];
-            $_SESSION['admin_username'] = $systemUser['phone'];
-            $_SESSION['admin_name'] = $systemUser['full_name'] ?: 'User';
-            $_SESSION['user_type'] = 'system_user';
-            $_SESSION['must_change_password'] = (bool)$systemUser['must_change_password'];
+            // Check if OTP is enabled globally and for this user
+            require_once __DIR__ . '/otp-service.php';
+            $otpService = new OTPService();
+            $otpEnabled = $otpService->isOTPEnabled() && $systemUser['otp_enabled'];
             
-            return true;
+            $fullName = trim(($systemUser['first_name'] ?? '') . ' ' . ($systemUser['last_name'] ?? ''));
+            $displayName = $systemUser['first_name'] ?? 'User';
+            
+            if ($otpEnabled) {
+                // OTP required, don't set session yet
+                return [
+                    'success' => true,
+                    'otp_required' => true,
+                    'user_id' => $systemUser['id'],
+                    'username' => $systemUser['phone'],
+                    'name' => $fullName ?: 'User',
+                    'first_name' => $systemUser['first_name'],
+                    'phone' => $systemUser['phone'],
+                    'user_type' => 'system_user',
+                    'must_change_password' => (bool)$systemUser['must_change_password']
+                ];
+            } else {
+                // No OTP required, login complete
+                $_SESSION['admin_id'] = $systemUser['id'];
+                $_SESSION['admin_username'] = $systemUser['phone'];
+                $_SESSION['admin_name'] = $fullName ?: 'User';
+                $_SESSION['admin_first_name'] = $systemUser['first_name'];
+                $_SESSION['user_type'] = 'system_user';
+                $_SESSION['must_change_password'] = (bool)$systemUser['must_change_password'];
+                
+                return [
+                    'success' => true,
+                    'otp_required' => false,
+                    'user_id' => $systemUser['id'],
+                    'username' => $systemUser['phone'],
+                    'name' => $fullName ?: 'User',
+                    'first_name' => $systemUser['first_name'],
+                    'user_type' => 'system_user'
+                ];
+            }
         }
         
-        return false;
+        return [
+            'success' => false,
+            'message' => 'Invalid username or password',
+            'otp_required' => false
+        ];
     }
 
     /**

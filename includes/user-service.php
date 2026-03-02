@@ -33,7 +33,7 @@ class UserService {
      */
     public function generateAndSendCredentials($userId) {
         $stmt = $this->db->prepare("
-            SELECT id, phone, full_name, email 
+            SELECT id, phone, first_name, last_name, email 
             FROM system_users 
             WHERE id = ?
         ");
@@ -60,7 +60,8 @@ class UserService {
         $updateStmt->execute([$tempPassword, $passwordHash, $userId]);
 
         // Send credentials via SMS
-        $smsSent = $this->sendCredentialsSMS($user['phone'], $user['full_name'] ?: 'User', $tempPassword);
+        $fullName = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+        $smsSent = $this->sendCredentialsSMS($user['phone'], $fullName ?: 'User', $tempPassword);
 
         if ($smsSent) {
             return [
@@ -188,7 +189,7 @@ class UserService {
      */
     public function resetPassword($userId) {
         $stmt = $this->db->prepare("
-            SELECT id, phone, full_name 
+            SELECT id, phone, first_name, last_name 
             FROM system_users 
             WHERE id = ? AND is_active = 1
         ");
@@ -215,7 +216,8 @@ class UserService {
         $updateStmt->execute([$tempPassword, $passwordHash, $userId]);
 
         // Send temporary password via SMS
-        $smsSent = $this->sendResetPasswordSMS($user['phone'], $user['full_name'] ?: 'User', $tempPassword);
+        $fullName = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+        $smsSent = $this->sendResetPasswordSMS($user['phone'], $fullName ?: 'User', $tempPassword);
 
         if ($smsSent) {
             return [

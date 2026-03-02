@@ -109,8 +109,12 @@ Auth::requireLogin();
                             <small class="text-muted">Format: 254712345678</small>
                         </div>
                         <div class="mb-3">
-                            <label for="fullName" class="form-label">Full Name</label>
-                            <input type="text" class="form-control" id="fullName" placeholder="John Doe">
+                            <label for="firstName" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="firstName" placeholder="John">
+                        </div>
+                        <div class="mb-3">
+                            <label for="lastName" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="lastName" placeholder="Doe">
                         </div>
                         <div class="mb-3">
                             <label for="email" class="form-label">Email</label>
@@ -282,7 +286,8 @@ Auth::requireLogin();
                     document.getElementById('userId').value = user.id;
                     document.getElementById('phone').value = user.phone;
                     document.getElementById('phone').readOnly = true;
-                    document.getElementById('fullName').value = user.full_name || '';
+                    document.getElementById('firstName').value = user.first_name || '';
+                    document.getElementById('lastName').value = user.last_name || '';
                     document.getElementById('email').value = user.email || '';
                     document.getElementById('otpEnabled').checked = user.otp_enabled == 1;
                     document.getElementById('isActive').checked = user.is_active == 1;
@@ -294,7 +299,8 @@ Auth::requireLogin();
         function saveUser() {
             const userId = document.getElementById('userId').value;
             const phone = document.getElementById('phone').value;
-            const fullName = document.getElementById('fullName').value;
+            const firstName = document.getElementById('firstName').value;
+            const lastName = document.getElementById('lastName').value;
             const email = document.getElementById('email').value;
             const otpEnabled = document.getElementById('otpEnabled').checked ? 1 : 0;
             const isActive = document.getElementById('isActive').checked ? 1 : 0;
@@ -308,14 +314,16 @@ Auth::requireLogin();
             if (userId) {
                 formData.append('action', 'update');
                 formData.append('user_id', userId);
-                formData.append('full_name', fullName);
+                formData.append('first_name', firstName);
+                formData.append('last_name', lastName);
                 formData.append('email', email);
                 formData.append('otp_enabled', otpEnabled);
                 formData.append('is_active', isActive);
             } else {
                 formData.append('action', 'create');
                 formData.append('phone', phone);
-                formData.append('full_name', fullName);
+                formData.append('first_name', firstName);
+                formData.append('last_name', lastName);
                 formData.append('email', email);
                 formData.append('otp_enabled', otpEnabled);
             }

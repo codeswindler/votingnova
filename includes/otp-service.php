@@ -9,7 +9,7 @@ require_once __DIR__ . '/../config/advanta.php';
 class OTPService {
     private $db;
     private $smsConfig;
-    private $otpExpiryMinutes = 10; // OTP expires in 10 minutes
+    private $otpExpiryMinutes = 5; // OTP expires in 5 minutes
 
     public function __construct() {
         $this->db = getDB();

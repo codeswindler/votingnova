@@ -45,7 +45,19 @@
                 </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-person-circle me-1"></i> <span><?php echo htmlspecialchars(Auth::getUsername()); ?></span>
+                        <i class="bi bi-person-circle me-1"></i> <span><?php 
+                            $firstName = $_SESSION['admin_first_name'] ?? null;
+                            $fullName = $_SESSION['admin_name'] ?? null;
+                            if ($firstName) {
+                                echo htmlspecialchars($firstName);
+                            } elseif ($fullName) {
+                                // Extract first name from full name if first_name not set
+                                $nameParts = explode(' ', $fullName);
+                                echo htmlspecialchars($nameParts[0]);
+                            } else {
+                                echo htmlspecialchars(Auth::getUsername());
+                            }
+                        ?></span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="/admin/logout.php">Logout</a></li>

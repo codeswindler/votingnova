@@ -61,9 +61,9 @@ function getUsers($db) {
     $params = [];
     
     if ($search) {
-        $where[] = "(phone LIKE ? OR full_name LIKE ? OR email LIKE ?)";
+        $where[] = "(phone LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) LIKE ?)";
         $searchParam = "%{$search}%";
-        $params = array_merge($params, [$searchParam, $searchParam, $searchParam]);
+        $params = array_merge($params, [$searchParam, $searchParam, $searchParam, $searchParam, $searchParam]);
     }
     
     $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
@@ -105,7 +105,8 @@ function getUsers($db) {
 
 function createUser($db) {
     $phone = $_POST['phone'] ?? '';
-    $fullName = $_POST['full_name'] ?? '';
+    $firstName = $_POST['first_name'] ?? '';
+    $lastName = $_POST['last_name'] ?? '';
     $email = $_POST['email'] ?? '';
     $otpEnabled = isset($_POST['otp_enabled']) ? (int)$_POST['otp_enabled'] : 0;
     
@@ -138,10 +139,10 @@ function createUser($db) {
     
     try {
         $stmt = $db->prepare("
-            INSERT INTO system_users (phone, full_name, email, otp_enabled, created_by)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO system_users (phone, first_name, last_name, email, otp_enabled, created_by)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$phone, $fullName, $email, $otpEnabled, $adminId]);
+        $stmt->execute([$phone, $firstName, $lastName, $email, $otpEnabled, $adminId]);
         
         $userId = $db->lastInsertId();
         
@@ -158,7 +159,8 @@ function createUser($db) {
 
 function updateUser($db) {
     $userId = (int)($_POST['user_id'] ?? 0);
-    $fullName = $_POST['full_name'] ?? '';
+    $firstName = $_POST['first_name'] ?? '';
+    $lastName = $_POST['last_name'] ?? '';
     $email = $_POST['email'] ?? '';
     $otpEnabled = isset($_POST['otp_enabled']) ? (int)$_POST['otp_enabled'] : 0;
     $isActive = isset($_POST['is_active']) ? (int)$_POST['is_active'] : 1;
@@ -172,10 +174,10 @@ function updateUser($db) {
     try {
         $stmt = $db->prepare("
             UPDATE system_users
-            SET full_name = ?, email = ?, otp_enabled = ?, is_active = ?, updated_at = NOW()
+            SET first_name = ?, last_name = ?, email = ?, otp_enabled = ?, is_active = ?, updated_at = NOW()
             WHERE id = ?
         ");
-        $stmt->execute([$fullName, $email, $otpEnabled, $isActive, $userId]);
+        $stmt->execute([$firstName, $lastName, $email, $otpEnabled, $isActive, $userId]);
         
         echo json_encode([
             'success' => true,

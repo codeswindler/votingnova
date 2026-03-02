@@ -4,18 +4,89 @@
  */
 
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/otp-service.php';
+require_once __DIR__ . '/../includes/db.php';
 
 $error = '';
+$otpRequired = false;
+$otpSent = false;
+$pendingUserId = null;
+$pendingPhone = null;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Handle OTP verification
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['otp_code'])) {
+    $userId = (int)($_SESSION['pending_user_id'] ?? 0);
+    $otpCode = $_POST['otp_code'] ?? '';
+    
+    if ($userId && $otpCode) {
+        $otpService = new OTPService();
+        $result = $otpService->verifyOTP($userId, $otpCode, 'login');
+        
+        if ($result['success']) {
+            // OTP verified, complete login
+            $_SESSION['admin_id'] = $_SESSION['pending_user_id'];
+            $_SESSION['admin_username'] = $_SESSION['pending_username'];
+            $_SESSION['admin_name'] = $_SESSION['pending_name'];
+            $_SESSION['user_type'] = $_SESSION['pending_user_type'];
+            $_SESSION['must_change_password'] = $_SESSION['pending_must_change_password'] ?? false;
+            
+            // Clear pending session data
+            unset($_SESSION['pending_user_id']);
+            unset($_SESSION['pending_username']);
+            unset($_SESSION['pending_name']);
+            unset($_SESSION['pending_user_type']);
+            unset($_SESSION['pending_must_change_password']);
+            
+            header('Location: /admin/dashboard.php');
+            exit;
+        } else {
+            $error = $result['message'] ?? 'Invalid OTP code';
+            $otpRequired = true;
+            $pendingUserId = $userId;
+            $pendingPhone = $_SESSION['pending_phone'] ?? null;
+        }
+    } else {
+        $error = 'Invalid OTP verification request';
+    }
+}
+// Handle initial login
+elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
     
-    if (Auth::login($username, $password)) {
-        header('Location: /admin/dashboard.php');
-        exit;
+    $loginResult = Auth::attemptLogin($username, $password);
+    
+    if ($loginResult['success']) {
+        // Check if OTP is required
+        if ($loginResult['otp_required']) {
+            // Store pending login info in session
+            $_SESSION['pending_user_id'] = $loginResult['user_id'];
+            $_SESSION['pending_username'] = $loginResult['username'];
+            $_SESSION['pending_name'] = $loginResult['name'];
+            $_SESSION['pending_first_name'] = $loginResult['first_name'] ?? null;
+            $_SESSION['pending_user_type'] = $loginResult['user_type'];
+            $_SESSION['pending_must_change_password'] = $loginResult['must_change_password'] ?? false;
+            $_SESSION['pending_phone'] = $loginResult['phone'] ?? null;
+            
+            // Generate and send OTP
+            $otpService = new OTPService();
+            $otpResult = $otpService->generateAndSendOTP($loginResult['user_id'], $loginResult['phone'], 'login');
+            
+            if ($otpResult['success']) {
+                $otpRequired = true;
+                $otpSent = true;
+                $pendingUserId = $loginResult['user_id'];
+                $pendingPhone = $loginResult['phone'];
+            } else {
+                $error = 'Failed to send OTP: ' . ($otpResult['message'] ?? 'Unknown error');
+            }
+        } else {
+            // No OTP required, login complete
+            header('Location: /admin/dashboard.php');
+            exit;
+        }
     } else {
-        $error = 'Invalid username or password';
+        $error = $loginResult['message'] ?? 'Invalid username or password';
     }
 }
 
@@ -348,53 +419,97 @@ if (Auth::isLoggedIn()) {
             </div>
 
             <div class="login-body">
-                <form method="POST" id="loginForm">
-                    <label for="username">Username</label>
-                    <input
-                        type="text"
-                        id="username"
-                        name="username"
-                        placeholder="Enter your username"
-                        value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>"
-                        required
-                        autofocus
-                    />
-                    
-                    <label for="password">Password</label>
-                    <div class="password-field">
+                <?php if ($otpRequired): ?>
+                    <!-- OTP Verification Form -->
+                    <form method="POST" id="otpForm">
+                        <div class="mb-3">
+                            <p class="subtle" style="color: #6fb87f; margin-bottom: 16px;">
+                                <i class="bi bi-shield-check"></i> 
+                                <?php if ($otpSent): ?>
+                                    OTP code has been sent to your phone. Please enter it below.
+                                <?php else: ?>
+                                    Please enter the OTP code sent to your phone.
+                                <?php endif; ?>
+                            </p>
+                        </div>
+                        
+                        <label for="otp_code">OTP Code</label>
                         <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            placeholder="••••••••"
+                            type="text"
+                            id="otp_code"
+                            name="otp_code"
+                            placeholder="Enter 6-digit OTP"
+                            maxlength="6"
+                            pattern="[0-9]{6}"
                             required
+                            autofocus
+                            style="text-align: center; font-size: 18px; letter-spacing: 4px;"
                         />
-                        <button
-                            type="button"
-                            class="password-toggle"
-                            onclick="togglePassword()"
-                            aria-label="Show password"
-                            tabindex="-1"
-                        >
-                            <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
-                                <path d="M12 5c5.05 0 9.27 3.1 10.9 7.5C21.27 16.9 17.05 20 12 20S2.73 16.9 1.1 12.5C2.73 8.1 6.95 5 12 5zm0 2c-3.79 0-7.05 2.22-8.57 5.5C4.95 15.78 8.21 18 12 18s7.05-2.22 8.57-5.5C19.05 9.22 15.79 7 12 7z" id="eyePath" fill="currentColor"/>
-                                <path d="M12 9.5A3.5 3.5 0 1 0 15.5 13 3.5 3.5 0 0 0 12 9.5z" id="eyePupil" fill="currentColor"/>
-                            </svg>
-                        </button>
-                    </div>
+                        
+                        <?php if ($error): ?>
+                            <p class="subtle error-text"><?php echo htmlspecialchars($error); ?></p>
+                        <?php endif; ?>
+                        
+                        <div class="login-actions" style="margin-top: 16px;">
+                            <button type="submit">Verify OTP</button>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <a href="/admin/login.php" style="color: #6fb87f; text-decoration: none; font-size: 14px;">
+                                <i class="bi bi-arrow-left"></i> Back to Login
+                            </a>
+                        </div>
+                    </form>
+                <?php else: ?>
+                    <!-- Regular Login Form -->
+                    <form method="POST" id="loginForm">
+                        <label for="username">Username</label>
+                        <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            placeholder="Enter your username"
+                            value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>"
+                            required
+                            autofocus
+                        />
+                        
+                        <label for="password">Password</label>
+                        <div class="password-field">
+                            <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                placeholder="••••••••"
+                                required
+                            />
+                            <button
+                                type="button"
+                                class="password-toggle"
+                                onclick="togglePassword()"
+                                aria-label="Show password"
+                                tabindex="-1"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
+                                    <path d="M12 5c5.05 0 9.27 3.1 10.9 7.5C21.27 16.9 17.05 20 12 20S2.73 16.9 1.1 12.5C2.73 8.1 6.95 5 12 5zm0 2c-3.79 0-7.05 2.22-8.57 5.5C4.95 15.78 8.21 18 12 18s7.05-2.22 8.57-5.5C19.05 9.22 15.79 7 12 7z" id="eyePath" fill="currentColor"/>
+                                    <path d="M12 9.5A3.5 3.5 0 1 0 15.5 13 3.5 3.5 0 0 0 12 9.5z" id="eyePupil" fill="currentColor"/>
+                                </svg>
+                            </button>
+                        </div>
 
-                    <?php if ($error): ?>
-                        <p class="subtle error-text"><?php echo htmlspecialchars($error); ?></p>
-                    <?php endif; ?>
+                        <?php if ($error): ?>
+                            <p class="subtle error-text"><?php echo htmlspecialchars($error); ?></p>
+                        <?php endif; ?>
 
-                    <div class="forgot-password">
-                        <a href="#" onclick="showForgotPassword(); return false;">Forgot Password?</a>
-                    </div>
+                        <div class="forgot-password">
+                            <a href="#" onclick="showForgotPassword(); return false;">Forgot Password?</a>
+                        </div>
 
-                    <div class="login-actions">
-                        <button type="submit">Sign In</button>
-                    </div>
-                </form>
+                        <div class="login-actions">
+                            <button type="submit">Sign In</button>
+                        </div>
+                    </form>
+                <?php endif; ?>
             </div>
         </div>
     </div>

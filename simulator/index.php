@@ -54,10 +54,9 @@ if ($action === 'simulate_payment') {
         
         // Get the session to find the checkout_request_id and vote details
         $stmt = $db->prepare("
-            SELECT s.checkout_request_id, s.data, v.id as vote_id, v.amount, v.nominee_id, v.votes_count
-            FROM ussd_sessions s
-            LEFT JOIN votes v ON v.transaction_id = s.checkout_request_id
-            WHERE s.session_id = ?
+            SELECT checkout_request_id, nominee_id, votes_count, amount
+            FROM ussd_sessions
+            WHERE session_id = ?
         ");
         $stmt->execute([$sessionId]);
         $session = $stmt->fetch();
@@ -74,6 +73,7 @@ if ($action === 'simulate_payment') {
             $stmt->execute([$checkoutRequestId]);
             $existingTx = $stmt->fetch();
             
+            $amount = $session['amount'] ?? 0;
             if ($existingTx) {
                 // Update existing transaction
                 $stmt = $db->prepare("
@@ -87,7 +87,6 @@ if ($action === 'simulate_payment') {
                 $stmt->execute([$receiptNumber, $checkoutRequestId]);
             } else {
                 // Create new transaction for simulation
-                $amount = $session['amount'] ?? 0;
                 $stmt = $db->prepare("
                     INSERT INTO mpesa_transactions 
                     (phone, amount, checkout_request_id, status, mpesa_receipt_number, result_code, result_desc)
@@ -96,24 +95,35 @@ if ($action === 'simulate_payment') {
                 $stmt->execute([$phone, $amount, $checkoutRequestId, $receiptNumber]);
             }
             
-            // Update vote status if vote exists
-            if ($session['vote_id']) {
+            // Check if vote already exists (shouldn't, but check to avoid duplicates)
+            $stmt = $db->prepare("
+                SELECT id FROM votes WHERE transaction_id = ?
+            ");
+            $stmt->execute([$checkoutRequestId]);
+            $existingVote = $stmt->fetch();
+            
+            if (!$existingVote && $session['nominee_id'] && $session['votes_count']) {
+                // Create vote directly with 'completed' status (no pending state)
                 $stmt = $db->prepare("
-                    UPDATE votes 
-                    SET status = 'completed', mpesa_ref = ?
-                    WHERE id = ? AND status = 'pending'
+                    INSERT INTO votes (nominee_id, phone, votes_count, amount, status, mpesa_ref, transaction_id)
+                    VALUES (?, ?, ?, ?, 'completed', ?, ?)
                 ");
-                $stmt->execute([$receiptNumber, $session['vote_id']]);
+                $stmt->execute([
+                    $session['nominee_id'],
+                    $phone,
+                    $session['votes_count'],
+                    $amount,
+                    $receiptNumber,
+                    $checkoutRequestId
+                ]);
                 
                 // Update nominee vote count
-                if ($session['nominee_id'] && $session['votes_count']) {
-                    $stmt = $db->prepare("
-                        UPDATE nominees 
-                        SET votes_count = votes_count + ?
-                        WHERE id = ?
-                    ");
-                    $stmt->execute([$session['votes_count'], $session['nominee_id']]);
-                }
+                $stmt = $db->prepare("
+                    UPDATE nominees 
+                    SET votes_count = votes_count + ?
+                    WHERE id = ?
+                ");
+                $stmt->execute([$session['votes_count'], $session['nominee_id']]);
             }
             
             echo json_encode(['success' => true, 'receipt' => $receiptNumber]);
