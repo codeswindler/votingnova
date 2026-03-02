@@ -460,7 +460,9 @@ class USSDHandler {
             'checkout_request_id' => $checkoutRequestId
         ]);
 
-        return "CON Processing payment... Please check your phone for STK Push";
+        // END the USSD session so user can receive STK push notification
+        // Returning CON keeps the menu open and blocks the STK push from appearing
+        return "END Please check your phone for M-Pesa STK Push to complete payment.";
     }
 
     /**
