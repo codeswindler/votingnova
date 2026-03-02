@@ -242,6 +242,19 @@ class USSDHandler {
      * State 1: Handle category selection
      */
     private function handleCategorySelection($input) {
+        // Extract base code suffix to ignore it if it appears as input
+        $baseCodePattern = trim($this->ussdBaseCode, '*#');
+        $baseCodeParts = explode('*', $baseCodePattern);
+        $baseCodeSuffix = '';
+        if (count($baseCodeParts) > 1) {
+            $baseCodeSuffix = end($baseCodeParts); // e.g., "24"
+        }
+        
+        // If input matches base code suffix, ignore it and show menu again
+        if ($input === $baseCodeSuffix && !empty($baseCodeSuffix)) {
+            return $this->showCategories();
+        }
+        
         $categoryId = (int)$input;
         
         // Check if input is 98 (more) - not applicable for categories
