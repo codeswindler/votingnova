@@ -197,6 +197,31 @@ function deleteUser($db) {
     }
     
     try {
+        // Get user phone number
+        $stmt = $db->prepare("SELECT phone FROM system_users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch();
+        
+        if (!$user) {
+            http_response_code(404);
+            echo json_encode(['error' => 'User not found']);
+            return;
+        }
+        
+        // Check if user has votes
+        $stmt = $db->prepare("SELECT COUNT(*) as vote_count FROM votes WHERE phone = ?");
+        $stmt->execute([$user['phone']]);
+        $result = $stmt->fetch();
+        
+        if ($result && $result['vote_count'] > 0) {
+            http_response_code(400);
+            echo json_encode([
+                'error' => 'Cannot delete user. This user has ' . $result['vote_count'] . ' vote(s). Please remove votes first.'
+            ]);
+            return;
+        }
+        
+        // Delete user
         $stmt = $db->prepare("DELETE FROM system_users WHERE id = ?");
         $stmt->execute([$userId]);
         

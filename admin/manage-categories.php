@@ -52,13 +52,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int)($_POST['id'] ?? 0);
         if ($id) {
             try {
-                // Delete nominees first
-                $stmt = $db->prepare("DELETE FROM nominees WHERE category_id = ?");
+                // Check if category has nominees
+                $stmt = $db->prepare("SELECT COUNT(*) as nominee_count FROM nominees WHERE category_id = ?");
                 $stmt->execute([$id]);
-                // Delete category
-                $stmt = $db->prepare("DELETE FROM categories WHERE id = ?");
-                $stmt->execute([$id]);
-                $message = "Category deleted successfully!";
+                $result = $stmt->fetch();
+                
+                if ($result && $result['nominee_count'] > 0) {
+                    $error = "Cannot delete category. This category has " . $result['nominee_count'] . " nominee(s). Please delete all nominees first.";
+                } else {
+                    // Delete category (no nominees exist)
+                    $stmt = $db->prepare("DELETE FROM categories WHERE id = ?");
+                    $stmt->execute([$id]);
+                    $message = "Category deleted successfully!";
+                }
             } catch (Exception $e) {
                 $error = "Error deleting category: " . $e->getMessage();
             }
