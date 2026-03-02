@@ -134,6 +134,7 @@ function getCategoryLeaderboard($db, $categoryId) {
 
 /**
  * Get transactions
+ * Shows all votes (both simulated and real M-Pesa transactions)
  */
 function getTransactions($db) {
     $status = $_GET['status'] ?? '';
@@ -143,7 +144,7 @@ function getTransactions($db) {
     $limit = (int)($_GET['limit'] ?? 50);
     $offset = (int)($_GET['offset'] ?? 0);
     
-    $where = ["(v.transaction_id LIKE 'SIM-%' OR v.transaction_id LIKE 'SIM-SIM-%')"];
+    $where = [];
     $params = [];
     
     if ($status) {
