@@ -308,18 +308,27 @@ class UserService {
      * Change user password
      */
     public function changePassword($userId, $newPassword) {
-        $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
-        
-        $stmt = $this->db->prepare("
-            UPDATE system_users 
-            SET password_hash = ?,
-                temp_password = NULL,
-                must_change_password = 0,
-                last_password_change = NOW()
-            WHERE id = ?
-        ");
-        $stmt->execute([$passwordHash, $userId]);
+        try {
+            $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+            
+            $stmt = $this->db->prepare("
+                UPDATE system_users 
+                SET password_hash = ?,
+                    temp_password = NULL,
+                    must_change_password = 0,
+                    last_password_change = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$passwordHash, $userId]);
 
-        return $stmt->rowCount() > 0;
+            if ($stmt->rowCount() > 0) {
+                return ['success' => true, 'message' => 'Password changed successfully'];
+            } else {
+                return ['success' => false, 'message' => 'Failed to update password. User may not exist.'];
+            }
+        } catch (Exception $e) {
+            error_log("Password change error: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Database error occurred'];
+        }
     }
 }
