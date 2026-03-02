@@ -14,7 +14,7 @@ cat > /etc/nginx/sites-available/voting-nova <<'EOF'
 server {
     listen 80;
     listen [::]:80;
-    server_name voting.novotechafrica.co.ke www.voting.novotechafrica.co.ke;
+    server_name voting.novotechafrica.co.ke;
 
     # Proxy to PHP built-in server
     location / {
@@ -51,7 +51,7 @@ if nginx -t 2>&1 | grep -q "test is successful"; then
     echo ""
     echo "Next steps:"
     echo "1. Install SSL certificate (this will automatically configure HTTPS):"
-    echo "   sudo certbot --nginx -d voting.novotechafrica.co.ke -d www.voting.novotechafrica.co.ke"
+    echo "   sudo certbot --nginx -d voting.novotechafrica.co.ke"
     echo ""
     echo "2. After SSL is installed, update Advanta callback URL to:"
     echo "   https://voting.novotechafrica.co.ke/api/ussd.php"
