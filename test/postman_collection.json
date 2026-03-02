@@ -48,7 +48,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=*415#&MSISDN=254712345678&INPUT=1",
+          "raw": "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=YOUR_USSD_CODE&MSISDN=254712345678&INPUT=1",
           "protocol": "http",
           "host": ["localhost"],
           "port": "8000",
@@ -60,7 +60,7 @@
             },
             {
               "key": "USSDCODE",
-              "value": "*415#"
+              "value": "YOUR_USSD_CODE"
             },
             {
               "key": "MSISDN",
@@ -81,7 +81,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=*415#&MSISDN=254712345678&INPUT=1*1",
+          "raw": "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=YOUR_USSD_CODE&MSISDN=254712345678&INPUT=1*1",
           "protocol": "http",
           "host": ["localhost"],
           "port": "8000",
@@ -93,7 +93,7 @@
             },
             {
               "key": "USSDCODE",
-              "value": "*415#"
+              "value": "YOUR_USSD_CODE"
             },
             {
               "key": "MSISDN",
