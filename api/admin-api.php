@@ -50,33 +50,31 @@ try {
 
 /**
  * Get dashboard statistics
- * For local testing: Counts ALL simulated votes (pending + completed)
- * Only includes simulated votes (transaction_id starting with 'SIM-')
+ * Shows all votes (both simulated and real M-Pesa transactions)
  */
 function getStats($db) {
-    // Total votes - ALL simulated votes (pending + completed) for local testing
-    $stmt = $db->query("SELECT SUM(votes_count) as total FROM votes WHERE (transaction_id LIKE 'SIM-%' OR transaction_id LIKE 'SIM-SIM-%')");
+    // Total votes - all votes (real and simulated)
+    $stmt = $db->query("SELECT SUM(votes_count) as total FROM votes");
     $totalVotes = $stmt->fetch()['total'] ?? 0;
     
-    // Total revenue - ALL simulated votes (pending + completed) for local testing
-    $stmt = $db->query("SELECT SUM(amount) as total FROM votes WHERE (transaction_id LIKE 'SIM-%' OR transaction_id LIKE 'SIM-SIM-%')");
+    // Total revenue - all votes (real and simulated)
+    $stmt = $db->query("SELECT SUM(amount) as total FROM votes");
     $totalRevenue = $stmt->fetch()['total'] ?? 0;
     
-    // Total transactions - ALL simulated votes (pending + completed) for local testing
-    $stmt = $db->query("SELECT COUNT(*) as total FROM votes WHERE (transaction_id LIKE 'SIM-%' OR transaction_id LIKE 'SIM-SIM-%')");
+    // Total transactions - all votes (real and simulated)
+    $stmt = $db->query("SELECT COUNT(*) as total FROM votes");
     $totalTransactions = $stmt->fetch()['total'] ?? 0;
     
-    // Pending payments - only simulated
-    $stmt = $db->query("SELECT COUNT(*) as total FROM votes WHERE status = 'pending' AND (transaction_id LIKE 'SIM-%' OR transaction_id LIKE 'SIM-SIM-%')");
+    // Pending payments - all pending votes
+    $stmt = $db->query("SELECT COUNT(*) as total FROM votes WHERE status = 'pending'");
     $pendingPayments = $stmt->fetch()['total'] ?? 0;
     
-    // Recent transactions (last 10) - only simulated
+    // Recent transactions (last 10) - all votes
     $stmt = $db->query("
         SELECT v.*, n.name as nominee_name, c.name as category_name
         FROM votes v
         JOIN nominees n ON v.nominee_id = n.id
         JOIN categories c ON n.category_id = c.id
-        WHERE (v.transaction_id LIKE 'SIM-%' OR v.transaction_id LIKE 'SIM-SIM-%')
         ORDER BY v.created_at DESC
         LIMIT 10
     ");
@@ -93,16 +91,15 @@ function getStats($db) {
 
 /**
  * Get category leaderboard
- * For local testing: Counts ALL simulated votes (pending + completed)
- * Only includes simulated votes (transaction_id starting with 'SIM-')
+ * Shows all votes (both simulated and real M-Pesa transactions)
  */
 function getCategoryLeaderboard($db, $categoryId) {
     if ($categoryId > 0) {
         $stmt = $db->prepare("
             SELECT n.id, n.name, n.gender, c.id as category_id, c.name as category_name,
-                   COALESCE((SELECT SUM(votes_count) FROM votes WHERE nominee_id = n.id AND (transaction_id LIKE 'SIM-%' OR transaction_id LIKE 'SIM-SIM-%')), 0) as votes_count,
-                   (SELECT COUNT(*) FROM votes WHERE nominee_id = n.id AND (transaction_id LIKE 'SIM-%' OR transaction_id LIKE 'SIM-SIM-%')) as transaction_count,
-                   (SELECT SUM(amount) FROM votes WHERE nominee_id = n.id AND (transaction_id LIKE 'SIM-%' OR transaction_id LIKE 'SIM-SIM-%')) as total_amount
+                   COALESCE((SELECT SUM(votes_count) FROM votes WHERE nominee_id = n.id), 0) as votes_count,
+                   (SELECT COUNT(*) FROM votes WHERE nominee_id = n.id) as transaction_count,
+                   (SELECT SUM(amount) FROM votes WHERE nominee_id = n.id) as total_amount
             FROM nominees n
             JOIN categories c ON n.category_id = c.id
             WHERE n.category_id = ?
@@ -112,9 +109,9 @@ function getCategoryLeaderboard($db, $categoryId) {
     } else {
         $stmt = $db->query("
             SELECT n.id, n.name, n.gender, c.id as category_id, c.name as category_name,
-                   COALESCE((SELECT SUM(votes_count) FROM votes WHERE nominee_id = n.id AND (transaction_id LIKE 'SIM-%' OR transaction_id LIKE 'SIM-SIM-%')), 0) as votes_count,
-                   (SELECT COUNT(*) FROM votes WHERE nominee_id = n.id AND (transaction_id LIKE 'SIM-%' OR transaction_id LIKE 'SIM-SIM-%')) as transaction_count,
-                   (SELECT SUM(amount) FROM votes WHERE nominee_id = n.id AND (transaction_id LIKE 'SIM-%' OR transaction_id LIKE 'SIM-SIM-%')) as total_amount
+                   COALESCE((SELECT SUM(votes_count) FROM votes WHERE nominee_id = n.id), 0) as votes_count,
+                   (SELECT COUNT(*) FROM votes WHERE nominee_id = n.id) as transaction_count,
+                   (SELECT SUM(amount) FROM votes WHERE nominee_id = n.id) as total_amount
             FROM nominees n
             JOIN categories c ON n.category_id = c.id
             ORDER BY votes_count DESC, n.name ASC
@@ -123,7 +120,7 @@ function getCategoryLeaderboard($db, $categoryId) {
     
     $nominees = $stmt->fetchAll();
     
-    // Calculate percentages based on simulated votes only
+    // Calculate percentages based on all votes
     $totalVotes = array_sum(array_column($nominees, 'votes_count'));
     foreach ($nominees as &$nominee) {
         $nominee['percentage'] = $totalVotes > 0 ? round(($nominee['votes_count'] / $totalVotes) * 100, 2) : 0;
@@ -202,8 +199,7 @@ function getTransactions($db) {
 
 /**
  * Get winners per category
- * For local testing: Counts ALL simulated votes (pending + completed)
- * Only includes simulated votes (transaction_id starting with 'SIM-')
+ * Shows all votes (both simulated and real M-Pesa transactions)
  */
 function getWinners($db, $categoryId = 0) {
     if ($categoryId > 0) {
@@ -233,12 +229,12 @@ function getWinners($db, $categoryId = 0) {
             'female_winner' => null
         ];
         
-        // Get male winner - ALL simulated votes (pending + completed) for local testing
+        // Get male winner - all votes (real and simulated)
         $stmt = $db->prepare("
             SELECT n.id, n.name,
                    COALESCE(SUM(v.votes_count), 0) as votes_count
             FROM nominees n
-            LEFT JOIN votes v ON n.id = v.nominee_id AND (v.transaction_id LIKE 'SIM-%' OR v.transaction_id LIKE 'SIM-SIM-%')
+            LEFT JOIN votes v ON n.id = v.nominee_id
             WHERE n.category_id = ? AND n.gender = 'Male'
             GROUP BY n.id, n.name
             ORDER BY votes_count DESC, n.name ASC
@@ -255,12 +251,12 @@ function getWinners($db, $categoryId = 0) {
             ];
         }
         
-        // Get female winner - ALL simulated votes (pending + completed) for local testing
+        // Get female winner - all votes (real and simulated)
         $stmt = $db->prepare("
             SELECT n.id, n.name,
                    COALESCE(SUM(v.votes_count), 0) as votes_count
             FROM nominees n
-            LEFT JOIN votes v ON n.id = v.nominee_id AND (v.transaction_id LIKE 'SIM-%' OR v.transaction_id LIKE 'SIM-SIM-%')
+            LEFT JOIN votes v ON n.id = v.nominee_id
             WHERE n.category_id = ? AND n.gender = 'Female'
             GROUP BY n.id, n.name
             ORDER BY votes_count DESC, n.name ASC
@@ -283,16 +279,16 @@ function getWinners($db, $categoryId = 0) {
 
 /**
  * Get votes by category for charts
+ * Shows all votes (both simulated and real M-Pesa transactions)
  */
 function getVotesByCategory($db) {
-    // For local testing: Count ALL simulated votes (pending + completed)
     $stmt = $db->query("
         SELECT c.id, c.name, 
                SUM(v.votes_count) as total_votes,
                SUM(v.amount) as total_revenue
         FROM categories c
         LEFT JOIN nominees n ON c.id = n.category_id
-        LEFT JOIN votes v ON n.id = v.nominee_id AND (v.transaction_id LIKE 'SIM-%' OR v.transaction_id LIKE 'SIM-SIM-%')
+        LEFT JOIN votes v ON n.id = v.nominee_id
         GROUP BY c.id, c.name
         ORDER BY total_votes DESC
     ");
