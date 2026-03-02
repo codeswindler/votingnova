@@ -12,7 +12,7 @@ PROJECT_DIR="/var/www/novatech"
 DB_NAME="votingnova"
 DB_USER="votingnova_user"
 REPO_URL="https://github.com/codeswindler/votingnova.git"
-APP_PORT=6000
+APP_PORT=8080
 
 # Colors
 RED='\033[0;31m'
@@ -32,7 +32,7 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Check if port 6000 is available
+# Check if port 8080 is available (Chrome-safe port)
 echo "Checking port $APP_PORT availability..."
 if netstat -tuln 2>/dev/null | grep -q ":$APP_PORT "; then
     echo -e "${RED}✖ Port $APP_PORT is already in use${NC}"
@@ -153,9 +153,9 @@ else
     echo "  ✓ Database tables already exist"
 fi
 
-# Step 7: Create systemd service for PHP built-in server (better than Apache for this use case)
+# Step 7: Create systemd service for PHP built-in server
 echo ""
-echo "[7/8] Creating systemd service for port $APP_PORT..."
+echo "[7/8] Creating systemd service for port $APP_PORT (Chrome-safe port)..."
 
 # Create service file
 cat > /etc/systemd/system/voting-nova.service <<EOF
@@ -197,6 +197,7 @@ if systemctl is-active --quiet voting-nova.service; then
     echo ""
     echo "Application URL: http://voting.novotechafrica.co.ke:$APP_PORT"
     echo "Admin Dashboard: http://voting.novotechafrica.co.ke:$APP_PORT/admin/"
+    echo "Simulator: http://voting.novotechafrica.co.ke:$APP_PORT/simulator/"
     echo ""
     echo "Service management:"
     echo "  Status:  sudo systemctl status voting-nova"
