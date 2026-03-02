@@ -198,18 +198,36 @@ $categoriesWithCounts = $stmt->fetchAll();
                                     </thead>
                                     <tbody>
                                         <?php foreach ($categoriesWithCounts as $cat): ?>
-                                            <tr>
+                                            <tr class="category-row" data-category-id="<?php echo $cat['id']; ?>" style="cursor: pointer;">
                                                 <td><?php echo $cat['id']; ?></td>
-                                                <td><strong><?php echo htmlspecialchars($cat['name']); ?></strong></td>
+                                                <td>
+                                                    <strong><?php echo htmlspecialchars($cat['name']); ?></strong>
+                                                    <i class="bi bi-chevron-down ms-2" id="icon-<?php echo $cat['id']; ?>"></i>
+                                                </td>
                                                 <td><?php echo $cat['male_count']; ?></td>
                                                 <td><?php echo $cat['female_count']; ?></td>
                                                 <td><?php echo $cat['male_count'] + $cat['female_count']; ?></td>
-                                                <td>
+                                                <td onclick="event.stopPropagation();">
                                                     <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this category and all its nominees?');">
                                                         <input type="hidden" name="action" value="delete_category">
                                                         <input type="hidden" name="id" value="<?php echo $cat['id']; ?>">
                                                         <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                                                     </form>
+                                                </td>
+                                            </tr>
+                                            <tr class="nominees-row" id="nominees-<?php echo $cat['id']; ?>" style="display: none;">
+                                                <td colspan="6">
+                                                    <div class="p-3 bg-light">
+                                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                                            <h6 class="mb-0">Nominees for <?php echo htmlspecialchars($cat['name']); ?></h6>
+                                                            <button class="btn btn-sm btn-primary" onclick="showAddNomineeModal(<?php echo $cat['id']; ?>, '<?php echo htmlspecialchars($cat['name']); ?>')">
+                                                                <i class="bi bi-plus-circle"></i> Add Nominee
+                                                            </button>
+                                                        </div>
+                                                        <div id="nominees-list-<?php echo $cat['id']; ?>">
+                                                            <div class="text-center text-muted">Loading...</div>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -223,6 +241,256 @@ $categoriesWithCounts = $stmt->fetchAll();
         </div>
     </div>
     
+    <!-- Add/Edit Nominee Modal -->
+    <div class="modal fade" id="nomineeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="nomineeModalTitle">Add Nominee</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="nomineeForm">
+                        <input type="hidden" id="nominee_id" name="nominee_id">
+                        <input type="hidden" id="modal_category_id" name="category_id">
+                        <div class="mb-3">
+                            <label for="modal_nominee_name" class="form-label">Nominee Name</label>
+                            <input type="text" class="form-control" id="modal_nominee_name" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modal_gender" class="form-label">Gender</label>
+                            <select class="form-select" id="modal_gender" name="gender" required>
+                                <option value="">Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveNominee()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Category row click handler
+        document.querySelectorAll('.category-row').forEach(row => {
+            row.addEventListener('click', function(e) {
+                if (e.target.tagName === 'BUTTON' || e.target.closest('form')) {
+                    return; // Don't expand if clicking delete button
+                }
+                
+                const categoryId = this.dataset.categoryId;
+                const nomineesRow = document.getElementById('nominees-' + categoryId);
+                const icon = document.getElementById('icon-' + categoryId);
+                
+                if (nomineesRow.style.display === 'none') {
+                    nomineesRow.style.display = 'table-row';
+                    icon.className = 'bi bi-chevron-up ms-2';
+                    loadNominees(categoryId);
+                } else {
+                    nomineesRow.style.display = 'none';
+                    icon.className = 'bi bi-chevron-down ms-2';
+                }
+            });
+        });
+        
+        // Load nominees for a category
+        function loadNominees(categoryId) {
+            const listDiv = document.getElementById('nominees-list-' + categoryId);
+            listDiv.innerHTML = '<div class="text-center text-muted">Loading...</div>';
+            
+            fetch(`/api/manage-nominees-api.php?action=list&category_id=${categoryId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        displayNominees(categoryId, data.nominees);
+                    } else {
+                        listDiv.innerHTML = `<div class="alert alert-danger">${data.error || 'Failed to load nominees'}</div>`;
+                    }
+                })
+                .catch(err => {
+                    listDiv.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+                });
+        }
+        
+        // Display nominees
+        function displayNominees(categoryId, nominees) {
+            const listDiv = document.getElementById('nominees-list-' + categoryId);
+            
+            if (nominees.length === 0) {
+                listDiv.innerHTML = '<p class="text-muted">No nominees yet. Click "Add Nominee" to add one.</p>';
+                return;
+            }
+            
+            // Group by gender
+            const male = nominees.filter(n => n.gender === 'Male');
+            const female = nominees.filter(n => n.gender === 'Female');
+            
+            let html = '<div class="row">';
+            
+            // Male nominees
+            if (male.length > 0) {
+                html += '<div class="col-md-6 mb-3">';
+                html += '<h6 class="text-primary">Male Nominees (' + male.length + ')</h6>';
+                html += '<div class="list-group">';
+                male.forEach(nominee => {
+                    html += `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${escapeHtml(nominee.name)}</strong>
+                                <small class="text-muted d-block">Votes: ${nominee.votes_count || 0}</small>
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="editNominee(${nominee.id}, '${escapeHtml(nominee.name)}', '${nominee.gender}', ${categoryId})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteNominee(${nominee.id}, ${categoryId})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            }
+            
+            // Female nominees
+            if (female.length > 0) {
+                html += '<div class="col-md-6 mb-3">';
+                html += '<h6 class="text-danger">Female Nominees (' + female.length + ')</h6>';
+                html += '<div class="list-group">';
+                female.forEach(nominee => {
+                    html += `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${escapeHtml(nominee.name)}</strong>
+                                <small class="text-muted d-block">Votes: ${nominee.votes_count || 0}</small>
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="editNominee(${nominee.id}, '${escapeHtml(nominee.name)}', '${nominee.gender}', ${categoryId})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteNominee(${nominee.id}, ${categoryId})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            }
+            
+            html += '</div>';
+            listDiv.innerHTML = html;
+        }
+        
+        // Show add nominee modal
+        function showAddNomineeModal(categoryId, categoryName) {
+            document.getElementById('nomineeModalTitle').textContent = 'Add Nominee to ' + categoryName;
+            document.getElementById('nominee_id').value = '';
+            document.getElementById('modal_category_id').value = categoryId;
+            document.getElementById('modal_nominee_name').value = '';
+            document.getElementById('modal_gender').value = '';
+            new bootstrap.Modal(document.getElementById('nomineeModal')).show();
+        }
+        
+        // Edit nominee
+        function editNominee(nomineeId, name, gender, categoryId) {
+            document.getElementById('nomineeModalTitle').textContent = 'Edit Nominee';
+            document.getElementById('nominee_id').value = nomineeId;
+            document.getElementById('modal_category_id').value = categoryId;
+            document.getElementById('modal_nominee_name').value = name;
+            document.getElementById('modal_gender').value = gender;
+            new bootstrap.Modal(document.getElementById('nomineeModal')).show();
+        }
+        
+        // Save nominee (add or update)
+        function saveNominee() {
+            const form = document.getElementById('nomineeForm');
+            const formData = new FormData(form);
+            const nomineeId = formData.get('nominee_id');
+            const action = nomineeId ? 'update' : 'add';
+            
+            if (nomineeId) {
+                formData.append('nominee_id', nomineeId);
+            }
+            
+            formData.append('action', action);
+            
+            fetch('/api/manage-nominees-api.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('nomineeModal')).hide();
+                    const categoryId = formData.get('category_id');
+                    loadNominees(categoryId);
+                    showAlert('success', data.message || 'Nominee saved successfully!');
+                    // Reload page to update counts
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert('danger', data.error || 'Failed to save nominee');
+                }
+            })
+            .catch(err => {
+                showAlert('danger', 'Error: ' + err.message);
+            });
+        }
+        
+        // Delete nominee
+        function deleteNominee(nomineeId, categoryId) {
+            if (!confirm('Are you sure you want to delete this nominee?')) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', 'delete');
+            formData.append('nominee_id', nomineeId);
+            
+            fetch('/api/manage-nominees-api.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    loadNominees(categoryId);
+                    showAlert('success', data.message || 'Nominee deleted successfully!');
+                    // Reload page to update counts
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert('danger', data.error || 'Failed to delete nominee');
+                }
+            })
+            .catch(err => {
+                showAlert('danger', 'Error: ' + err.message);
+            });
+        }
+        
+        // Utility functions
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.container-fluid').firstChild);
+            setTimeout(() => alertDiv.remove(), 5000);
+        }
+    </script>
 </body>
 </html>
