@@ -106,15 +106,26 @@ class USSDHandler {
         $state = (int)$this->session['state'];
         $input = trim($this->input);
 
-        // Parse input - remove USSD code prefix if present
-        // Extract pattern from base code (e.g., *519*24# -> 519*24)
+        // Extract base code suffix (e.g., "24" from "*519*24#")
+        // This is used to identify the service, not as user input
+        $baseCodeSuffix = '';
         $baseCodePattern = trim($this->ussdBaseCode, '*#');
-        // Escape special regex characters and create pattern
+        $baseCodeParts = explode('*', $baseCodePattern);
+        if (count($baseCodeParts) > 1) {
+            $baseCodeSuffix = end($baseCodeParts); // e.g., "24"
+        }
+
+        // Parse input - remove USSD code prefix if present
         $pattern = '/^\*' . preg_quote($baseCodePattern, '/') . '\*/';
         $input = preg_replace($pattern, '', $input);
         $input = preg_replace('/#/', '', $input);
         $parts = explode('*', $input);
         $lastInput = end($parts);
+
+        // If state is 0 (initial) and input matches base code suffix, ignore it (it's part of the base code)
+        if ($state === 0 && $lastInput === $baseCodeSuffix && !empty($baseCodeSuffix)) {
+            $lastInput = ''; // Treat as empty input for initial menu
+        }
 
         // Handle navigation options (0, 00, 98)
         if ($lastInput === '00') {
