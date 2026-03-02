@@ -1004,11 +1004,12 @@ try {
 
         function handleDial() {
             if (mode === 'dial') {
-                if (dialText.trim() === '*415#') {
+                const expectedCode = '<?php echo addslashes($ussdBaseCode); ?>';
+                if (dialText.trim() === expectedCode) {
                     startSession(dialText);
                 } else {
                     // Reset if wrong
-                    dialText = '*415#';
+                    dialText = '<?php echo addslashes($ussdBaseCode); ?>';
                     updateDialDisplay();
                 }
             }
@@ -1255,7 +1256,7 @@ try {
             phoneBody.innerHTML = `
                 <div class="dialer-view" id="dialerView">
                     <div class="dialer-display" id="dialerDisplay">
-                        <input type="text" class="dialer-display-input" id="dialerInput" value="*415#" readonly>
+                        <input type="text" class="dialer-display-input" id="dialerInput" value="<?php echo htmlspecialchars($ussdBaseCode); ?>" readonly>
                     </div>
                     <div class="dialer-keypad">
                         <div class="dialer-keypad-grid">
