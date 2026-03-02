@@ -509,6 +509,35 @@ body.dark-theme .theme-toggle-switch::before {
     font-size: 1.25rem;
 }
 
+.navbar {
+    min-height: 56px;
+}
+
+.navbar-nav {
+    align-items: center;
+}
+
+.navbar-nav .nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    white-space: nowrap;
+}
+
+.navbar-nav .nav-link i {
+    font-size: 1rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.2em;
+    flex-shrink: 0;
+}
+
+.navbar-nav .nav-link span {
+    line-height: 1.5;
+}
+
 /* Stat Cards */
 .stat-card {
     border: none;

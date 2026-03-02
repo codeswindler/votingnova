@@ -10,42 +10,42 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <li class="nav-item">
-                    <a class="nav-link" href="/admin/dashboard.php">
-                        <i class="bi bi-speedometer2"></i> Dashboard
+                    <a class="nav-link d-flex align-items-center" href="/admin/dashboard.php">
+                        <i class="bi bi-speedometer2 me-1"></i> <span>Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/admin/categories.php">
-                        <i class="bi bi-trophy"></i> Categories & Winners
+                    <a class="nav-link d-flex align-items-center" href="/admin/categories.php">
+                        <i class="bi bi-trophy me-1"></i> <span>Categories & Winners</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/admin/manage-categories.php">
-                        <i class="bi bi-gear"></i> Manage Categories
+                    <a class="nav-link d-flex align-items-center" href="/admin/manage-categories.php">
+                        <i class="bi bi-gear me-1"></i> <span>Manage Categories</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/admin/transactions.php">
-                        <i class="bi bi-list-ul"></i> Transactions
+                    <a class="nav-link d-flex align-items-center" href="/admin/transactions.php">
+                        <i class="bi bi-list-ul me-1"></i> <span>Transactions</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/admin/users.php">
-                        <i class="bi bi-people"></i> Users
+                    <a class="nav-link d-flex align-items-center" href="/admin/users.php">
+                        <i class="bi bi-people me-1"></i> <span>Users</span>
                     </a>
                 </li>
             </ul>
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <a class="nav-link" href="#" onclick="toggleTheme(); return false;" title="Toggle Dark/Light Mode">
+            <ul class="navbar-nav mb-2 mb-lg-0">
+                <li class="nav-item d-flex align-items-center">
+                    <a class="nav-link d-flex align-items-center" href="#" onclick="toggleTheme(); return false;" title="Toggle Dark/Light Mode">
                         <i class="bi" id="themeIcon"></i>
                     </a>
                 </li>
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-person-circle"></i> <?php echo htmlspecialchars(Auth::getUsername()); ?>
+                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle me-1"></i> <span><?php echo htmlspecialchars(Auth::getUsername()); ?></span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="/admin/logout.php">Logout</a></li>
