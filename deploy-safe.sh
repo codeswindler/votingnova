@@ -148,8 +148,51 @@ a2enmod -q rewrite ssl headers 2>/dev/null || true
 # Step 3: Start services if not running
 echo "[3/11] Starting services..."
 if [ "$APACHE_RUNNING" = false ]; then
-    systemctl start apache2
-    systemctl enable apache2
+    # Check for port conflicts first
+    PORT80_IN_USE=$(netstat -tuln 2>/dev/null | grep ":80 " | wc -l || echo "0")
+    PORT443_IN_USE=$(netstat -tuln 2>/dev/null | grep ":443 " | wc -l || echo "0")
+    
+    if [ "$PORT80_IN_USE" -gt "0" ] || [ "$PORT443_IN_USE" -gt "0" ]; then
+        echo -e "${YELLOW}  ⚠ Port 80 or 443 is already in use${NC}"
+        echo "  Checking what's using the ports..."
+        netstat -tulpn 2>/dev/null | grep -E ":(80|443) " || ss -tulpn 2>/dev/null | grep -E ":(80|443) " || true
+        
+        # Check if Nginx is running
+        if systemctl is-active --quiet nginx 2>/dev/null; then
+            echo -e "${YELLOW}  ⚠ Nginx is running and using ports 80/443${NC}"
+            echo ""
+            echo "  Options:"
+            echo "    1. Stop Nginx temporarily: sudo systemctl stop nginx"
+            echo "    2. Configure Apache to work with Nginx (reverse proxy)"
+            echo "    3. Use Nginx instead of Apache"
+            echo ""
+            read -p "  Stop Nginx and continue? (y/N): " -n 1 -r
+            echo ""
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                systemctl stop nginx
+                systemctl disable nginx
+                echo "  ✓ Nginx stopped"
+            else
+                echo -e "${RED}  ✗ Cannot start Apache - ports in use. Please resolve conflict first.${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}  ✗ Ports 80/443 are in use by another service${NC}"
+            echo "  Please stop the conflicting service or configure Apache differently"
+            exit 1
+        fi
+    fi
+    
+    # Now try to start Apache
+    if systemctl start apache2; then
+        systemctl enable apache2
+        echo "  ✓ Apache started successfully"
+    else
+        echo -e "${RED}  ✗ Failed to start Apache${NC}"
+        echo "  Run: sudo systemctl status apache2"
+        echo "  Run: sudo apache2ctl configtest"
+        exit 1
+    fi
 fi
 if [ "$MYSQL_RUNNING" = false ]; then
     systemctl start mysql 2>/dev/null || systemctl start mariadb
