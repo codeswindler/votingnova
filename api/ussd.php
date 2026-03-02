@@ -14,14 +14,20 @@ ini_set('log_errors', 1);
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/ussd-handler.php';
 
-// Get parameters from Advanta
-$sessionId = $_GET['SESSIONID'] ?? $_POST['SESSIONID'] ?? '';
-$ussdCode = $_GET['USSDCODE'] ?? $_POST['USSDCODE'] ?? '';
-$msisdn = $_GET['MSISDN'] ?? $_POST['MSISDN'] ?? '';
-$input = $_GET['INPUT'] ?? $_POST['INPUT'] ?? '';
+// Get parameters from Advanta (try both GET and POST)
+$sessionId = $_GET['SESSIONID'] ?? $_POST['SESSIONID'] ?? $_REQUEST['SESSIONID'] ?? '';
+$ussdCode = $_GET['USSDCODE'] ?? $_POST['USSDCODE'] ?? $_REQUEST['USSDCODE'] ?? '';
+$msisdn = $_GET['MSISDN'] ?? $_POST['MSISDN'] ?? $_REQUEST['MSISDN'] ?? '';
+$input = $_GET['INPUT'] ?? $_POST['INPUT'] ?? $_REQUEST['INPUT'] ?? '';
 
-// Log incoming request for debugging
-error_log("USSD Request - SESSIONID: $sessionId, USSDCODE: $ussdCode, MSISDN: $msisdn, INPUT: $input");
+// URL decode if needed
+$ussdCode = urldecode($ussdCode);
+$input = urldecode($input);
+
+// Log incoming request for debugging (including raw request data)
+error_log("USSD Request - Method: " . $_SERVER['REQUEST_METHOD'] . ", SESSIONID: $sessionId, USSDCODE: $ussdCode, MSISDN: $msisdn, INPUT: $input");
+error_log("USSD Raw GET: " . print_r($_GET, true));
+error_log("USSD Raw POST: " . print_r($_POST, true));
 
 // Validate required parameters
 if (empty($sessionId) || empty($msisdn)) {
