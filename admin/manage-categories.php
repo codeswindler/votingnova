@@ -616,7 +616,7 @@ $categoriesWithCounts = $stmt->fetchAll();
         function showUndoNotification(deletionId, message, type) {
             const container = document.getElementById('undoContainer') || createUndoContainer();
             
-            let timeLeft = 30;
+            let timeLeft = 10;
             const notificationId = 'undo-' + deletionId;
             
             const notification = document.createElement('div');
