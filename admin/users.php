@@ -194,7 +194,12 @@ Auth::requireLogin();
                 <tr>
                     <td>${user.id}</td>
                     <td>${user.phone}</td>
-                    <td>${user.full_name || '-'}</td>
+                    <td>${(() => {
+                        const firstName = user.first_name || '';
+                        const lastName = user.last_name || '';
+                        const fullName = (firstName + ' ' + lastName).trim();
+                        return fullName || '-';
+                    })()}</td>
                     <td>${user.email || '-'}</td>
                     <td>
                         <div class="form-check form-switch">
