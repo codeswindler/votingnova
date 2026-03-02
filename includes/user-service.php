@@ -104,7 +104,10 @@ class UserService {
             'mobile' => $phone
         ];
 
-        $ch = curl_init($this->smsConfig['sms_api_url']);
+        $url = $this->smsConfig['sms_api_url'];
+        error_log("User Credentials SMS: Sending to $phone, URL: $url, Payload: " . json_encode($data));
+        
+        $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -113,14 +116,22 @@ class UserService {
             'Accept: application/json'
         ]);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
+
+        if ($curlError) {
+            error_log("User Credentials SMS cURL Error: $curlError");
+            return false;
+        }
 
         if ($httpCode === 200) {
             $result = json_decode($response, true);
             if (isset($result['status']) && $result['status'] === 'success') {
+                error_log("User Credentials SMS: Successfully sent to $phone");
                 return true;
             }
         }
