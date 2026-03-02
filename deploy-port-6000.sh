@@ -100,9 +100,10 @@ echo "  Enter MySQL root password:"
 read -s MYSQL_ROOT_PASS
 
 # Check if database exists
-DB_EXISTS=$(mysql -u root -p"$MYSQL_ROOT_PASS" -e "SHOW DATABASES LIKE '$DB_NAME';" 2>/dev/null | grep -c "$DB_NAME" || echo "0")
+DB_EXISTS=$(mysql -u root -p"$MYSQL_ROOT_PASS" -e "SHOW DATABASES LIKE '$DB_NAME';" 2>/dev/null | grep -w "$DB_NAME" | wc -l)
+DB_EXISTS=${DB_EXISTS:-0}
 
-if [ "$DB_EXISTS" -eq "0" ]; then
+if [ "$DB_EXISTS" = "0" ]; then
     DB_PASS=$(openssl rand -base64 12 2>/dev/null || date +%s | sha256sum | base64 | head -c 12)
     
     mysql -u root -p"$MYSQL_ROOT_PASS" <<EOF
@@ -121,8 +122,20 @@ fi
 # Step 6: Import schema
 echo ""
 echo "[6/8] Importing database schema..."
-TABLE_COUNT=$(mysql -u root -p"$MYSQL_ROOT_PASS" $DB_NAME -e "SHOW TABLES;" 2>/dev/null | wc -l || echo "0")
-if [ "$TABLE_COUNT" -le "1" ]; then
+
+# Verify database exists before importing
+if ! mysql -u root -p"$MYSQL_ROOT_PASS" -e "USE $DB_NAME;" 2>/dev/null; then
+    echo -e "${RED}  ✖ Database $DB_NAME does not exist. Creating it now...${NC}"
+    mysql -u root -p"$MYSQL_ROOT_PASS" <<EOF
+CREATE DATABASE IF NOT EXISTS $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+EOF
+    echo "  ✓ Database created"
+fi
+
+TABLE_COUNT=$(mysql -u root -p"$MYSQL_ROOT_PASS" $DB_NAME -e "SHOW TABLES;" 2>/dev/null | tail -n +2 | wc -l)
+TABLE_COUNT=${TABLE_COUNT:-0}
+
+if [ "$TABLE_COUNT" -le "0" ]; then
     if [ -f "database/schema.sql" ]; then
         mysql -u root -p"$MYSQL_ROOT_PASS" $DB_NAME < database/schema.sql
     fi
