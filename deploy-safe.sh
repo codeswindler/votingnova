@@ -73,25 +73,19 @@ else
     DISABLE_DEFAULT=true
 fi
 
-# Check if ports 80/443 are in use
+# Check if port 6000 is available (using custom port to avoid conflicts)
 echo ""
 echo -e "${BLUE}Checking port availability...${NC}"
-if netstat -tuln 2>/dev/null | grep -q ":80 "; then
-    PORT80_IN_USE=$(netstat -tuln 2>/dev/null | grep ":80 " | head -1)
-    echo -e "${YELLOW}⚠ Port 80 is in use:${NC}"
-    echo "   $PORT80_IN_USE"
-    echo -e "${YELLOW}   Apache can handle multiple sites on port 80 (virtual hosts)${NC}"
+APACHE_PORT=6000
+if netstat -tuln 2>/dev/null | grep -q ":$APACHE_PORT "; then
+    PORT_IN_USE=$(netstat -tuln 2>/dev/null | grep ":$APACHE_PORT " | head -1)
+    echo -e "${YELLOW}⚠ Port $APACHE_PORT is in use:${NC}"
+    echo "   $PORT_IN_USE"
+    echo -e "${RED}   Please free port $APACHE_PORT or choose a different port${NC}"
+    exit 1
 else
-    echo -e "${GREEN}✓ Port 80 is available${NC}"
-fi
-
-if netstat -tuln 2>/dev/null | grep -q ":443 "; then
-    PORT443_IN_USE=$(netstat -tuln 2>/dev/null | grep ":443 " | head -1)
-    echo -e "${YELLOW}⚠ Port 443 is in use:${NC}"
-    echo "   $PORT443_IN_USE"
-    echo -e "${YELLOW}   Apache can handle multiple sites on port 443 (virtual hosts)${NC}"
-else
-    echo -e "${GREEN}✓ Port 443 is available${NC}"
+    echo -e "${GREEN}✓ Port $APACHE_PORT is available${NC}"
+    echo -e "${BLUE}   Using port $APACHE_PORT for Apache (to avoid conflicts)${NC}"
 fi
 
 # Check if project directory exists
@@ -145,68 +139,54 @@ fi
 echo "[2/11] Enabling Apache modules..."
 a2enmod -q rewrite ssl headers 2>/dev/null || true
 
-# Step 3: Start services if not running
-echo "[3/11] Starting services..."
+# Step 3: Configure Apache for port 6000
+echo "[3/11] Configuring Apache for port 6000..."
+APACHE_PORT=6000
+
+# Update ports.conf to listen on port 6000
+if ! grep -q "Listen $APACHE_PORT" /etc/apache2/ports.conf 2>/dev/null; then
+    echo "Listen $APACHE_PORT" >> /etc/apache2/ports.conf
+    echo "  ✓ Added Listen $APACHE_PORT to ports.conf"
+else
+    echo "  ✓ Port $APACHE_PORT already configured"
+fi
+
+# Step 4: Start services if not running
+echo "[4/11] Starting services..."
 if [ "$APACHE_RUNNING" = false ]; then
-    # Check for port conflicts first
-    PORT80_IN_USE=$(netstat -tuln 2>/dev/null | grep ":80 " | wc -l || echo "0")
-    PORT443_IN_USE=$(netstat -tuln 2>/dev/null | grep ":443 " | wc -l || echo "0")
-    
-    if [ "$PORT80_IN_USE" -gt "0" ] || [ "$PORT443_IN_USE" -gt "0" ]; then
-        echo -e "${YELLOW}  ⚠ Port 80 or 443 is already in use${NC}"
-        echo "  Checking what's using the ports..."
-        netstat -tulpn 2>/dev/null | grep -E ":(80|443) " || ss -tulpn 2>/dev/null | grep -E ":(80|443) " || true
-        
-        # Check if Nginx is running
-        if systemctl is-active --quiet nginx 2>/dev/null; then
-            echo -e "${YELLOW}  ⚠ Nginx is running and using ports 80/443${NC}"
-            echo ""
-            echo "  Options:"
-            echo "    1. Stop Nginx temporarily: sudo systemctl stop nginx"
-            echo "    2. Configure Apache to work with Nginx (reverse proxy)"
-            echo "    3. Use Nginx instead of Apache"
-            echo ""
-            read -p "  Stop Nginx and continue? (y/N): " -n 1 -r
-            echo ""
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                systemctl stop nginx
-                systemctl disable nginx
-                echo "  ✓ Nginx stopped"
-            else
-                echo -e "${RED}  ✗ Cannot start Apache - ports in use. Please resolve conflict first.${NC}"
-                exit 1
-            fi
-        else
-            echo -e "${RED}  ✗ Ports 80/443 are in use by another service${NC}"
-            echo "  Please stop the conflicting service or configure Apache differently"
-            exit 1
-        fi
+    # Check if port 6000 is available
+    if netstat -tuln 2>/dev/null | grep -q ":$APACHE_PORT "; then
+        echo -e "${RED}  ✗ Port $APACHE_PORT is already in use${NC}"
+        netstat -tulpn 2>/dev/null | grep ":$APACHE_PORT " || true
+        exit 1
     fi
     
     # Now try to start Apache
     if systemctl start apache2; then
         systemctl enable apache2
-        echo "  ✓ Apache started successfully"
+        echo "  ✓ Apache started successfully on port $APACHE_PORT"
     else
         echo -e "${RED}  ✗ Failed to start Apache${NC}"
         echo "  Run: sudo systemctl status apache2"
         echo "  Run: sudo apache2ctl configtest"
         exit 1
     fi
+else
+    echo "  ✓ Apache is already running"
 fi
 if [ "$MYSQL_RUNNING" = false ]; then
     systemctl start mysql 2>/dev/null || systemctl start mariadb
     systemctl enable mysql 2>/dev/null || systemctl enable mariadb
 fi
 
-# Step 4: Create directory
-echo "[4/11] Creating project directory..."
+# Step 5: Create directory
+echo "[5/11] Creating project directory..."
 mkdir -p $PROJECT_DIR
 chown -R $SUDO_USER:www-data $PROJECT_DIR
 chmod -R 755 $PROJECT_DIR
 
-# Step 5: Clone repository
-echo "[5/11] Cloning/Updating repository..."
+# Step 6: Clone repository
+echo "[6/11] Cloning/Updating repository..."
 cd $PROJECT_DIR
 if [ -d ".git" ]; then
     echo "  ✓ Repository exists, pulling latest..."
@@ -215,8 +195,8 @@ else
     git clone -q $REPO_URL .
 fi
 
-# Step 6: Setup .env
-echo "[6/11] Setting up environment file..."
+# Step 7: Setup .env
+echo "[7/11] Setting up environment file..."
 if [ ! -f ".env" ]; then
     cp env.example .env
     echo -e "${YELLOW}  ⚠ IMPORTANT: Edit .env file with your production credentials${NC}"
@@ -227,8 +207,8 @@ else
     echo "  ✓ .env file already exists"
 fi
 
-# Step 7: Database setup
-echo "[7/11] Setting up database..."
+# Step 8: Database setup
+echo "[8/11] Setting up database..."
 echo "  Enter MySQL root password:"
 read -s MYSQL_ROOT_PASS
 
@@ -265,8 +245,8 @@ EOF
     fi
 fi
 
-# Step 8: Import schema (only if tables don't exist)
-echo "[8/11] Importing database schema..."
+# Step 9: Import schema (only if tables don't exist)
+echo "[9/11] Importing database schema..."
 TABLE_COUNT=$(mysql -u root -p"$MYSQL_ROOT_PASS" $DB_NAME -e "SHOW TABLES;" 2>/dev/null | wc -l || echo "0")
 if [ "$TABLE_COUNT" -le "1" ]; then
     mysql -u root -p"$MYSQL_ROOT_PASS" $DB_NAME < database/schema.sql
@@ -278,13 +258,14 @@ else
     echo "  ✓ Database tables already exist, skipping import"
 fi
 
-# Step 9: Apache virtual host (SAFE - won't disable existing sites)
-echo "[9/11] Configuring Apache virtual host..."
+# Step 10: Apache virtual host (SAFE - won't disable existing sites)
+echo "[10/11] Configuring Apache virtual host..."
+APACHE_PORT=6000
 if [ -f "/etc/apache2/sites-available/voting-nova.conf" ]; then
     echo "  ✓ Virtual host config already exists"
 else
-    cat > /etc/apache2/sites-available/voting-nova.conf <<'EOF'
-<VirtualHost *:80>
+    cat > /etc/apache2/sites-available/voting-nova.conf <<EOF
+<VirtualHost *:$APACHE_PORT>
     ServerName voting.novotechafrica.co.ke
     ServerAlias www.voting.novotechafrica.co.ke
     DocumentRoot /var/www/novatech
@@ -295,11 +276,11 @@ else
         Require all granted
     </Directory>
 
-    ErrorLog ${APACHE_LOG_DIR}/voting-nova-error.log
-    CustomLog ${APACHE_LOG_DIR}/voting-nova-access.log combined
+    ErrorLog \${APACHE_LOG_DIR}/voting-nova-error.log
+    CustomLog \${APACHE_LOG_DIR}/voting-nova-access.log combined
 </VirtualHost>
 EOF
-    echo "  ✓ Virtual host config created"
+    echo "  ✓ Virtual host config created for port $APACHE_PORT"
 fi
 
 # Enable site (won't disable others)
@@ -323,21 +304,21 @@ else
     exit 1
 fi
 
-# Step 10: Permissions
-echo "[10/11] Setting file permissions..."
+# Step 11: Permissions
+echo "[11/11] Setting file permissions..."
 chown -R www-data:www-data $PROJECT_DIR
 find $PROJECT_DIR -type d -exec chmod 755 {} \;
 find $PROJECT_DIR -type f -exec chmod 644 {} \;
 [ -f ".env" ] && chmod 640 .env && chown www-data:www-data .env
 echo "  ✓ Permissions set"
 
-# Step 11: Firewall (SAFE - only adds rules, doesn't enable if disabled)
-echo "[11/11] Configuring firewall..."
+# Step 12: Firewall (SAFE - only adds rules, doesn't enable if disabled)
+APACHE_PORT=6000
+echo "[12/12] Configuring firewall..."
 if ufw status | grep -q "Status: active"; then
     ufw allow 22/tcp 2>/dev/null || true
-    ufw allow 80/tcp 2>/dev/null || true
-    ufw allow 443/tcp 2>/dev/null || true
-    echo "  ✓ Firewall rules added"
+    ufw allow $APACHE_PORT/tcp 2>/dev/null || true
+    echo "  ✓ Firewall rules added for port $APACHE_PORT"
 else
     echo -e "${YELLOW}  ⚠ Firewall is not active, skipping rules${NC}"
     echo "     You may want to enable it manually: sudo ufw enable"
@@ -348,22 +329,25 @@ echo -e "${GREEN}=========================================="
 echo "✅ Deployment Complete!"
 echo "==========================================${NC}"
 echo ""
+APACHE_PORT=6000
 echo -e "${BLUE}Summary:${NC}"
 echo "  • Project installed at: $PROJECT_DIR"
 echo "  • Domain: voting.novotechafrica.co.ke"
+echo "  • Apache Port: $APACHE_PORT"
+echo "  • Access URL: http://voting.novotechafrica.co.ke:$APACHE_PORT"
 echo "  • Existing projects: ${GREEN}NOT AFFECTED${NC}"
 echo "  • Existing Apache sites: ${GREEN}STILL ACTIVE${NC}"
 echo ""
 echo -e "${YELLOW}Next Steps:${NC}"
 echo ""
 echo "1. Update .env file with production credentials"
-echo "2. Install SSL certificate:"
-echo "   sudo apt install -y certbot python3-certbot-apache"
-echo "   sudo certbot --apache -d voting.novotechafrica.co.ke"
 echo ""
-echo "3. Configure callbacks:"
-echo "   - Advanta USSD: https://voting.novotechafrica.co.ke/api/ussd.php"
-echo "   - M-Pesa: https://voting.novotechafrica.co.ke/api/mpesa-callback.php"
+echo "2. Access admin dashboard:"
+echo "   http://voting.novotechafrica.co.ke:$APACHE_PORT/admin/"
 echo ""
-echo "4. Access admin: https://voting.novotechafrica.co.ke/admin/"
+echo "3. Configure callbacks (update URLs to include port $APACHE_PORT):"
+echo "   - Advanta USSD: http://voting.novotechafrica.co.ke:$APACHE_PORT/api/ussd.php"
+echo "   - M-Pesa: http://voting.novotechafrica.co.ke:$APACHE_PORT/api/mpesa-callback.php"
+echo ""
+echo "4. Optional: Set up reverse proxy (Nginx) to forward port 80/443 to $APACHE_PORT"
 echo ""
