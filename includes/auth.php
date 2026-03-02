@@ -8,22 +8,67 @@ session_start();
 require_once __DIR__ . '/db.php';
 
 class Auth {
+    // Session timeout in seconds (5 minutes)
+    const SESSION_TIMEOUT = 300; // 5 * 60
+    
+    /**
+     * Check if session has timed out due to inactivity
+     */
+    private static function checkSessionTimeout() {
+        if (isset($_SESSION['last_activity'])) {
+            $timeSinceLastActivity = time() - $_SESSION['last_activity'];
+            if ($timeSinceLastActivity > self::SESSION_TIMEOUT) {
+                // Session expired due to inactivity
+                session_unset();
+                session_destroy();
+                return true;
+            }
+        }
+        // Update last activity time
+        $_SESSION['last_activity'] = time();
+        return false;
+    }
+    
     /**
      * Check if user is logged in
      */
     public static function isLoggedIn() {
-        return isset($_SESSION['admin_id']) && isset($_SESSION['admin_username']);
+        if (!isset($_SESSION['admin_id']) || !isset($_SESSION['admin_username'])) {
+            return false;
+        }
+        
+        // Check for session timeout
+        if (self::checkSessionTimeout()) {
+            return false;
+        }
+        
+        return true;
     }
 
     /**
      * Require login - redirect if not logged in
-     * Also checks if password change is required
+     * Also checks if password change is required and session timeout
      */
     public static function requireLogin() {
+        // Check session timeout first
+        if (isset($_SESSION['last_activity'])) {
+            $timeSinceLastActivity = time() - $_SESSION['last_activity'];
+            if ($timeSinceLastActivity > self::SESSION_TIMEOUT) {
+                // Session expired - destroy and redirect
+                session_unset();
+                session_destroy();
+                header('Location: /admin/login.php?timeout=1');
+                exit;
+            }
+        }
+        
         if (!self::isLoggedIn()) {
             header('Location: /admin/login.php');
             exit;
         }
+        
+        // Update last activity time on each request
+        $_SESSION['last_activity'] = time();
         
         // Check if password change is required (for system users)
         if (isset($_SESSION['must_change_password']) && $_SESSION['must_change_password'] && 
@@ -67,6 +112,7 @@ class Auth {
             $_SESSION['admin_username'] = $user['username'];
             $_SESSION['admin_name'] = $user['full_name'];
             $_SESSION['user_type'] = 'admin';
+            $_SESSION['last_activity'] = time(); // Set initial activity time
             
             // Update last login
             $updateStmt = $db->prepare("UPDATE admin_users SET last_login = NOW() WHERE id = ?");
@@ -127,6 +173,7 @@ class Auth {
                 $_SESSION['admin_first_name'] = $systemUser['first_name'];
                 $_SESSION['user_type'] = 'system_user';
                 $_SESSION['must_change_password'] = (bool)$systemUser['must_change_password'];
+                $_SESSION['last_activity'] = time(); // Set initial activity time
                 
                 return [
                     'success' => true,

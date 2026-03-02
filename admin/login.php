@@ -30,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['otp_code'])) {
             $_SESSION['admin_first_name'] = $_SESSION['pending_first_name'] ?? null;
             $_SESSION['user_type'] = $_SESSION['pending_user_type'];
             $_SESSION['must_change_password'] = $_SESSION['pending_must_change_password'] ?? false;
+            $_SESSION['last_activity'] = time(); // Set initial activity time
             
             // Clear pending session data
             $mustChangePassword = $_SESSION['pending_must_change_password'] ?? false;
