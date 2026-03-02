@@ -98,7 +98,7 @@ class UserService {
 
         // Get login URL from environment
         $appUrl = getenv('APP_URL') ?: 'https://voting.novotechafrica.co.ke';
-        $loginUrl = rtrim($appUrl, '/') . '/admin/login.php';
+        $loginUrl = rtrim($appUrl, '/') . '/admin';
         
         $message = "Hello {$name}, your Voting System credentials have been created. Username: {$phone}, Password: {$password}. Login: {$loginUrl} Please change your password on first login.";
 
@@ -254,7 +254,7 @@ class UserService {
 
         // Get login URL from environment
         $appUrl = getenv('APP_URL') ?: 'https://voting.novotechafrica.co.ke';
-        $loginUrl = rtrim($appUrl, '/') . '/admin/login.php';
+        $loginUrl = rtrim($appUrl, '/') . '/admin';
         
         $message = "Hello {$name}, your password has been reset. Temporary password: {$tempPassword}. Username: {$phone}. Login: {$loginUrl} Please login and change your password immediately.";
 
