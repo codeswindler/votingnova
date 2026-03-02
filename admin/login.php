@@ -27,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['otp_code'])) {
             $_SESSION['admin_id'] = $_SESSION['pending_user_id'];
             $_SESSION['admin_username'] = $_SESSION['pending_username'];
             $_SESSION['admin_name'] = $_SESSION['pending_name'];
+            $_SESSION['admin_first_name'] = $_SESSION['pending_first_name'] ?? null;
             $_SESSION['user_type'] = $_SESSION['pending_user_type'];
             $_SESSION['must_change_password'] = $_SESSION['pending_must_change_password'] ?? false;
             
@@ -34,8 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['otp_code'])) {
             unset($_SESSION['pending_user_id']);
             unset($_SESSION['pending_username']);
             unset($_SESSION['pending_name']);
+            unset($_SESSION['pending_first_name']);
             unset($_SESSION['pending_user_type']);
             unset($_SESSION['pending_must_change_password']);
+            unset($_SESSION['pending_phone']);
             
             header('Location: /admin/dashboard.php');
             exit;
