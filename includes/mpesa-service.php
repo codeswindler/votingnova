@@ -106,7 +106,18 @@ class MpesaService {
         // Real M-Pesa API call
         $token = $this->getAccessToken();
         if (!$token) {
-            error_log("Failed to get M-Pesa access token");
+            error_log("STK Push Error: Failed to get M-Pesa access token. Check consumer_key and consumer_secret in .env");
+            return null;
+        }
+        
+        // Validate required config
+        if (empty($this->config['shortcode']) || empty($this->config['passkey'])) {
+            error_log("STK Push Error: Missing M-Pesa shortcode or passkey in .env");
+            return null;
+        }
+        
+        if (empty($this->config['callback_url'])) {
+            error_log("STK Push Error: Missing M-Pesa callback URL in .env");
             return null;
         }
 
@@ -152,7 +163,9 @@ class MpesaService {
         curl_close($ch);
 
         if ($httpCode !== 200) {
-            error_log("STK Push Error: " . $response);
+            error_log("STK Push HTTP Error ($httpCode): " . $response);
+            error_log("STK Push Request URL: " . $url);
+            error_log("STK Push Payload: " . json_encode($payload));
             return null;
         }
 
@@ -175,10 +188,14 @@ class MpesaService {
                 $response
             ]);
 
+            error_log("STK Push Success: CheckoutRequestID = $checkoutRequestId, Phone = $phone, Amount = $amount");
             return $checkoutRequestId;
         }
 
-        error_log("STK Push Failed: " . $response);
+        $errorMsg = $data['errorMessage'] ?? $data['error_description'] ?? 'Unknown error';
+        $errorCode = $data['errorCode'] ?? $data['ResponseCode'] ?? 'Unknown';
+        error_log("STK Push Failed - ResponseCode: $errorCode, Message: $errorMsg");
+        error_log("STK Push Full Response: " . $response);
         return null;
     }
 

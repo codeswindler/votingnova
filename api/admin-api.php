@@ -143,7 +143,7 @@ function getTransactions($db) {
     $offset = (int)($_GET['offset'] ?? 0);
     
     // Exclude simulated votes (SIM-)
-    $where = ["((v.transaction_id NOT LIKE 'SIM-%' AND v.transaction_id NOT LIKE 'SIM-SIM-%') OR v.transaction_id IS NULL)"];
+    $where = ["(v.transaction_id IS NULL OR (v.transaction_id NOT LIKE 'SIM-%' AND v.transaction_id NOT LIKE 'SIM-SIM-%'))"];
     $params = [];
     
     if ($status) {
