@@ -13,6 +13,11 @@ $otpSent = false;
 $pendingUserId = null;
 $pendingPhone = null;
 
+// Check if redirected due to session timeout
+if (isset($_GET['timeout']) && $_GET['timeout'] == '1') {
+    $error = 'Your session has expired due to inactivity. Please login again.';
+}
+
 // Handle OTP verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['otp_code'])) {
     $userId = (int)($_SESSION['pending_user_id'] ?? 0);
