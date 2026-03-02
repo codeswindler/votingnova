@@ -65,8 +65,17 @@ class USSDHandler {
                 'nominee_id' => null,
                 'votes_count' => null,
                 'amount' => null,
-                'page' => 0
+                'page' => 0,
+                'checkout_request_id' => null
             ];
+        } else {
+            // Load session data from JSON if exists
+            if (!empty($this->session['data'])) {
+                $sessionData = json_decode($this->session['data'], true);
+                if (is_array($sessionData)) {
+                    $this->session = array_merge($this->session, $sessionData);
+                }
+            }
         }
     }
 
@@ -81,10 +90,15 @@ class USSDHandler {
             $this->session['page'] = $data['page'];
         }
         
+        // Determine session expiry based on state (15 minutes for payment state, 5 minutes otherwise)
+        $state = $data['state'] ?? $this->session['state'];
+        $expiryMinutes = ($state == 6) ? 15 : 5; // Payment state gets 15 minutes
+        
         $stmt = $this->db->prepare("
             UPDATE ussd_sessions 
             SET state = ?, category_id = ?, gender = ?, nominee_id = ?, 
-                votes_count = ?, amount = ?, data = ?, expires_at = DATE_ADD(NOW(), INTERVAL 5 MINUTE)
+                votes_count = ?, amount = ?, checkout_request_id = ?, data = ?, 
+                expires_at = DATE_ADD(NOW(), INTERVAL ? MINUTE)
             WHERE session_id = ?
         ");
         $stmt->execute([
@@ -94,7 +108,9 @@ class USSDHandler {
             $data['nominee_id'] ?? $this->session['nominee_id'] ?? null,
             $data['votes_count'] ?? $this->session['votes_count'] ?? null,
             $data['amount'] ?? $this->session['amount'] ?? null,
+            $data['checkout_request_id'] ?? $this->session['checkout_request_id'] ?? null,
             json_encode($this->session),
+            $expiryMinutes,
             $this->sessionId
         ]);
     }
@@ -438,98 +454,58 @@ class USSDHandler {
             return $this->showError("Payment initiation failed. Please try again.");
         }
 
-        // Create vote record
-        $stmt = $this->db->prepare("
-            INSERT INTO votes (nominee_id, phone, votes_count, amount, status, transaction_id)
-            VALUES (?, ?, ?, ?, 'pending', ?)
-        ");
-        $stmt->execute([
-            $this->session['nominee_id'],
-            $this->phone,
-            $this->session['votes_count'],
-            $this->session['amount'],
-            $checkoutRequestId
-        ]);
-        $voteId = $this->db->lastInsertId();
-
-        // Update session
+        // Update session with checkout_request_id (vote will be created by callback when payment is confirmed)
         $this->updateSession([
             'state' => 6,
             'checkout_request_id' => $checkoutRequestId
         ]);
-
-        // Store vote_id in session data
-        $this->session['vote_id'] = $voteId;
-        $stmt = $this->db->prepare("UPDATE ussd_sessions SET data = ? WHERE session_id = ?");
-        $stmt->execute([json_encode($this->session), $this->sessionId]);
 
         return "CON Processing payment... Please check your phone for STK Push";
     }
 
     /**
      * State 6: Check payment status
-     * For simulated payments (SIM-*), auto-complete immediately
+     * Polls M-Pesa transaction status and looks up completed votes
      */
     private function checkPaymentStatus() {
         $checkoutRequestId = $this->session['checkout_request_id'] ?? null;
+        
+        // Fallback: If checkout_request_id not in session, try to find it from mpesa_transactions table
+        if (!$checkoutRequestId) {
+            $stmt = $this->db->prepare("
+                SELECT checkout_request_id FROM mpesa_transactions 
+                WHERE phone = ? AND status = 'pending'
+                ORDER BY created_at DESC 
+                LIMIT 1
+            ");
+            $stmt->execute([$this->phone]);
+            $transaction = $stmt->fetch();
+            
+            if ($transaction && $transaction['checkout_request_id']) {
+                $checkoutRequestId = $transaction['checkout_request_id'];
+                // Update session with found checkout_request_id
+                $this->updateSession(['checkout_request_id' => $checkoutRequestId]);
+            }
+        }
         
         if (!$checkoutRequestId) {
             return $this->showError("Payment session not found.");
         }
 
-        // For simulated payments, auto-complete if not already done
-        if (strpos($checkoutRequestId, 'SIM-') === 0) {
-            // Check if vote exists and is pending
-            $stmt = $this->db->prepare("
-                SELECT v.id, v.status, v.mpesa_ref, n.name 
-                FROM votes v
-                JOIN nominees n ON v.nominee_id = n.id
-                WHERE v.transaction_id = ?
-            ");
-            $stmt->execute([$checkoutRequestId]);
-            $vote = $stmt->fetch();
-
-            if ($vote && $vote['status'] === 'pending') {
-                // Auto-complete simulated payment
-                // Receipt format: VOT#45p095j (VOT# + 7 alphanumeric chars)
-                $receiptNumber = 'VOT#' . strtolower(substr(preg_replace('/[^a-z0-9]/', '', md5($checkoutRequestId . time())), 0, 7));
-                $stmt = $this->db->prepare("
-                    UPDATE votes 
-                    SET status = 'completed', mpesa_ref = ?
-                    WHERE id = ?
-                ");
-                $stmt->execute([$receiptNumber, $vote['id']]);
-                
-                // Update nominee vote count
-                $stmt = $this->db->prepare("
-                    UPDATE nominees 
-                    SET votes_count = votes_count + ?
-                    WHERE id = ?
-                ");
-                $stmt->execute([$this->session['votes_count'], $this->session['nominee_id']]);
-                
-                // Update M-Pesa transaction if exists
-                $stmt = $this->db->prepare("
-                    UPDATE mpesa_transactions 
-                    SET status = 'completed', mpesa_receipt_number = ?, result_code = 0
-                    WHERE checkout_request_id = ?
-                ");
-                $stmt->execute([$receiptNumber, $checkoutRequestId]);
-                
-                $message = "Thank you! Your {$this->session['votes_count']} vote(s) for {$vote['name']} have been recorded.";
-                $message .= " Ref: {$receiptNumber}";
-                return "END " . $message;
-            } elseif ($vote && $vote['status'] === 'completed') {
-                // Already completed
-                $message = "Thank you! Your {$this->session['votes_count']} vote(s) for {$vote['name']} have been recorded.";
-                if ($vote['mpesa_ref']) {
-                    $message .= " Ref: {$vote['mpesa_ref']}";
-                }
-                return "END " . $message;
-            }
+        // Check payment status for real payments - poll from mpesa_transactions table
+        $stmt = $this->db->prepare("
+            SELECT status, mpesa_receipt_number, result_code, result_desc
+            FROM mpesa_transactions 
+            WHERE checkout_request_id = ?
+        ");
+        $stmt->execute([$checkoutRequestId]);
+        $transaction = $stmt->fetch();
+        
+        if (!$transaction) {
+            return "CON Please complete the payment on your phone...";
         }
 
-        // Check payment status for real payments
+        // Check if vote exists (should be created by callback when payment is confirmed)
         $stmt = $this->db->prepare("
             SELECT v.status, v.mpesa_ref, n.name 
             FROM votes v
@@ -539,20 +515,25 @@ class USSDHandler {
         $stmt->execute([$checkoutRequestId]);
         $vote = $stmt->fetch();
 
-        if (!$vote) {
-            return "CON Please complete the payment on your phone...";
-        }
-
-        if ($vote['status'] === 'completed') {
-            $message = "Thank you! Your {$this->session['votes_count']} vote(s) for {$vote['name']} have been recorded.";
-            if ($vote['mpesa_ref']) {
-                $message .= " Ref: {$vote['mpesa_ref']}";
+        // If transaction is completed, check if vote exists (callback should have created it)
+        if ($transaction['status'] === 'completed' && $transaction['mpesa_receipt_number']) {
+            if ($vote && $vote['status'] === 'completed') {
+                // Vote exists and is completed (callback processed it)
+                $message = "Thank you! Your {$this->session['votes_count']} vote(s) for {$vote['name']} have been recorded.";
+                if ($vote['mpesa_ref']) {
+                    $message .= " Ref: {$vote['mpesa_ref']}";
+                }
+                return "END " . $message;
+            } else {
+                // Transaction completed but vote not yet created (callback might be delayed)
+                return "CON Payment received. Processing your vote...";
             }
-            return "END " . $message;
-        } elseif ($vote['status'] === 'failed') {
+        } elseif ($transaction['status'] === 'failed') {
+            // Payment failed - no vote created (we only record paid votes)
             return "END Payment failed. Please try again.";
         }
 
+        // Payment still pending
         return "CON Please complete the payment on your phone...";
     }
 

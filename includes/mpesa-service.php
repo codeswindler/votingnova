@@ -68,42 +68,7 @@ class MpesaService {
      * Initiate STK Push
      */
     public function initiateSTKPush($phone, $amount, $sessionId) {
-        // Check if we're in simulation mode (session ID starts with "SIM-")
-        // or if M-Pesa credentials are not configured
-        $isSimulation = (strpos($sessionId, 'SIM-') === 0);
-        $hasCredentials = !empty($this->config['consumer_key']) && !empty($this->config['consumer_secret']);
-        
-        if ($isSimulation || !$hasCredentials) {
-            // Simulate STK Push for testing
-            $checkoutRequestId = 'SIM-' . $sessionId . '-' . time();
-            $merchantRequestId = 'SIM-' . md5($sessionId . time());
-            
-            // Normalize phone number
-            $phone = preg_replace('/[^0-9]/', '', $phone);
-            if (substr($phone, 0, 1) === '0') {
-                $phone = '254' . substr($phone, 1);
-            } elseif (substr($phone, 0, 3) !== '254') {
-                $phone = '254' . $phone;
-            }
-            
-            // Store simulated transaction
-            $stmt = $this->db->prepare("
-                INSERT INTO mpesa_transactions 
-                (phone, amount, checkout_request_id, merchant_request_id, status, raw_response)
-                VALUES (?, ?, ?, ?, 'pending', ?)
-            ");
-            $stmt->execute([
-                $phone,
-                $amount,
-                $checkoutRequestId,
-                $merchantRequestId,
-                json_encode(['simulated' => true, 'session_id' => $sessionId])
-            ]);
-
-            return $checkoutRequestId;
-        }
-
-        // Real M-Pesa API call
+        // Real M-Pesa API call only - no simulation in production
         $token = $this->getAccessToken();
         if (!$token) {
             error_log("STK Push Error: Failed to get M-Pesa access token. Check consumer_key and consumer_secret in .env");
@@ -172,7 +137,16 @@ class MpesaService {
         $data = json_decode($response, true);
         
         if (isset($data['ResponseCode']) && $data['ResponseCode'] == '0') {
-            $checkoutRequestId = $data['CheckoutRequestID'];
+            $checkoutRequestId = $data['CheckoutRequestID'] ?? null;
+            $customerMessage = $data['CustomerMessage'] ?? null;
+            $merchantRequestId = $data['MerchantRequestID'] ?? null;
+            
+            // Validate complete response structure
+            if (!$checkoutRequestId) {
+                error_log("STK Push Error: ResponseCode is 0 but CheckoutRequestID is missing");
+                error_log("STK Push Full Response: " . $response);
+                return null;
+            }
             
             // Store transaction
             $stmt = $this->db->prepare("
@@ -184,15 +158,18 @@ class MpesaService {
                 $phone,
                 $amount,
                 $checkoutRequestId,
-                $data['MerchantRequestID'] ?? null,
+                $merchantRequestId,
                 $response
             ]);
 
             error_log("STK Push Success: CheckoutRequestID = $checkoutRequestId, Phone = $phone, Amount = $amount");
+            if ($customerMessage) {
+                error_log("STK Push CustomerMessage: $customerMessage");
+            }
             return $checkoutRequestId;
         }
 
-        $errorMsg = $data['errorMessage'] ?? $data['error_description'] ?? 'Unknown error';
+        $errorMsg = $data['errorMessage'] ?? $data['error_description'] ?? $data['CustomerMessage'] ?? 'Unknown error';
         $errorCode = $data['errorCode'] ?? $data['ResponseCode'] ?? 'Unknown';
         error_log("STK Push Failed - ResponseCode: $errorCode, Message: $errorMsg");
         error_log("STK Push Full Response: " . $response);
@@ -260,26 +237,46 @@ class MpesaService {
             $checkoutRequestId
         ]);
 
-        // Update vote if payment successful
+        // Create vote if payment successful (only record paid votes)
         if ($status === 'completed') {
+            // Look up USSD session to get vote details
             $stmt = $this->db->prepare("
-                UPDATE votes 
-                SET status = 'completed', mpesa_ref = ?
-                WHERE transaction_id = ? AND status = 'pending'
-            ");
-            $stmt->execute([$mpesaReceiptNumber, $checkoutRequestId]);
-
-            // Update nominee vote count
-            $stmt = $this->db->prepare("
-                UPDATE nominees n
-                INNER JOIN votes v ON n.id = v.nominee_id
-                SET n.votes_count = n.votes_count + v.votes_count
-                WHERE v.transaction_id = ? AND v.status = 'completed'
+                SELECT nominee_id, votes_count, amount 
+                FROM ussd_sessions 
+                WHERE checkout_request_id = ?
             ");
             $stmt->execute([$checkoutRequestId]);
+            $session = $stmt->fetch();
 
-            // Send SMS confirmation with vote details
-            $this->sendSMSConfirmation($checkoutRequestId, $transaction['phone'], $mpesaReceiptNumber, $transaction['amount']);
+            if ($session && $session['nominee_id'] && $session['votes_count']) {
+                // Create vote record directly with 'completed' status (no pending state)
+                $stmt = $this->db->prepare("
+                    INSERT INTO votes (nominee_id, phone, votes_count, amount, status, mpesa_ref, transaction_id)
+                    VALUES (?, ?, ?, ?, 'completed', ?, ?)
+                ");
+                $stmt->execute([
+                    $session['nominee_id'],
+                    $transaction['phone'],
+                    $session['votes_count'],
+                    $session['amount'],
+                    $mpesaReceiptNumber,
+                    $checkoutRequestId
+                ]);
+                $voteId = $this->db->lastInsertId();
+
+                // Update nominee vote count
+                $stmt = $this->db->prepare("
+                    UPDATE nominees 
+                    SET votes_count = votes_count + ?
+                    WHERE id = ?
+                ");
+                $stmt->execute([$session['votes_count'], $session['nominee_id']]);
+
+                // Send SMS confirmation with vote details
+                $this->sendSMSConfirmation($checkoutRequestId, $transaction['phone'], $mpesaReceiptNumber, $transaction['amount']);
+            } else {
+                error_log("M-Pesa Callback: Session not found or incomplete for checkout: " . $checkoutRequestId);
+            }
         }
 
         return true;
@@ -315,12 +312,14 @@ class MpesaService {
         
         $url = $config['sms_api_url'];
         $payload = [
-            'api_key' => $config['api_key'],
-            'partner_id' => $config['partner_id'],
+            'apikey' => $config['api_key'],
+            'partnerID' => $config['partner_id'],
             'shortcode' => $config['shortcode'],
             'mobile' => $phone,
             'message' => $message
         ];
+
+        error_log("Payment Confirmation SMS: Sending to $phone, URL: $url, Payload: " . json_encode($payload));
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_POST, true);
@@ -328,8 +327,38 @@ class MpesaService {
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         
-        curl_exec($ch);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
+
+        if ($curlError) {
+            error_log("Payment Confirmation SMS cURL Error: $curlError");
+            return;
+        }
+
+        if ($httpCode === 200) {
+            $result = json_decode($response, true);
+            
+            // Handle success response format: {"responses": [{"response-code": 200, ...}]}
+            if (isset($result['responses']) && is_array($result['responses']) && count($result['responses']) > 0) {
+                $firstResponse = $result['responses'][0];
+                if (isset($firstResponse['response-code']) && $firstResponse['response-code'] === 200) {
+                    error_log("Payment Confirmation SMS: Successfully sent to $phone, MessageID: " . ($firstResponse['messageid'] ?? 'N/A'));
+                    return;
+                }
+            }
+            
+            // Handle error response format: {"response-code": 1006, "response-description": "..."}
+            if (isset($result['response-code']) && $result['response-code'] !== 200) {
+                $errorDesc = $result['response-description'] ?? 'Unknown error';
+                error_log("Payment Confirmation SMS Error: Code {$result['response-code']}, Description: $errorDesc");
+                return;
+            }
+        }
+
+        error_log("Payment Confirmation SMS failed: HTTP {$httpCode}, Response: {$response}");
     }
 }

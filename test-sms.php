@@ -42,8 +42,8 @@ $testPhone = '254727839315'; // Your phone number for testing
 $testMessage = "Test SMS from Voting System - " . date('Y-m-d H:i:s');
 
 $data = [
-    'api_key' => $config['api_key'],
-    'partner_id' => $config['partner_id'],
+    'apikey' => $config['api_key'],
+    'partnerID' => $config['partner_id'],
     'shortcode' => $config['shortcode'],
     'message' => $testMessage,
     'mobile' => $testPhone
@@ -81,14 +81,35 @@ if ($curlError) {
 echo "Response: $response\n";
 
 $result = json_decode($response, true);
-if ($httpCode === 200 && isset($result['status']) && $result['status'] === 'success') {
-    echo "\n✓ SMS sent successfully!\n";
-    echo "Check your phone ($testPhone) for the test message.\n";
+
+// Handle success response format: {"responses": [{"response-code": 200, ...}]}
+if ($httpCode === 200 && isset($result['responses']) && is_array($result['responses']) && count($result['responses']) > 0) {
+    $firstResponse = $result['responses'][0];
+    if (isset($firstResponse['response-code']) && $firstResponse['response-code'] === 200) {
+        echo "\n✓ SMS sent successfully!\n";
+        echo "MessageID: " . ($firstResponse['messageid'] ?? 'N/A') . "\n";
+        echo "Check your phone ($testPhone) for the test message.\n";
+    } else {
+        echo "\n❌ SMS sending failed!\n";
+        echo "Response Code: " . ($firstResponse['response-code'] ?? 'N/A') . "\n";
+        echo "Description: " . ($firstResponse['response-description'] ?? 'N/A') . "\n";
+        exit(1);
+    }
+} elseif ($httpCode === 200 && isset($result['response-code']) && $result['response-code'] !== 200) {
+    // Handle error response format: {"response-code": 1006, "response-description": "..."}
+    echo "\n❌ SMS sending failed!\n";
+    echo "Error Code: " . $result['response-code'] . "\n";
+    echo "Description: " . ($result['response-description'] ?? 'Unknown error') . "\n";
+    echo "\nCommon issues:\n";
+    echo "1. Invalid API key or Partner ID\n";
+    echo "2. Shortcode not authorized\n";
+    echo "3. Insufficient SMS credits\n";
+    echo "4. Phone number format incorrect\n";
+    echo "5. API endpoint URL incorrect\n";
+    exit(1);
 } else {
     echo "\n❌ SMS sending failed!\n";
-    if (isset($result['message'])) {
-        echo "Error: " . $result['message'] . "\n";
-    }
+    echo "Unexpected response format\n";
     echo "\nCommon issues:\n";
     echo "1. Invalid API key or Partner ID\n";
     echo "2. Shortcode not authorized\n";

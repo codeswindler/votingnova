@@ -153,8 +153,8 @@ class OTPService {
         $message = "Your OTP code is: {$code}. Valid for {$this->otpExpiryMinutes} minutes. Do not share this code.";
 
         $data = [
-            'api_key' => $this->smsConfig['api_key'],
-            'partner_id' => $this->smsConfig['partner_id'],
+            'apikey' => $this->smsConfig['api_key'],
+            'partnerID' => $this->smsConfig['partner_id'],
             'shortcode' => $this->smsConfig['shortcode'],
             'message' => $message,
             'mobile' => $phone
@@ -186,9 +186,21 @@ class OTPService {
 
         if ($httpCode === 200) {
             $result = json_decode($response, true);
-            if (isset($result['status']) && $result['status'] === 'success') {
-                error_log("OTP SMS: Successfully sent to $phone");
-                return true;
+            
+            // Handle success response format: {"responses": [{"response-code": 200, ...}]}
+            if (isset($result['responses']) && is_array($result['responses']) && count($result['responses']) > 0) {
+                $firstResponse = $result['responses'][0];
+                if (isset($firstResponse['response-code']) && $firstResponse['response-code'] === 200) {
+                    error_log("OTP SMS: Successfully sent to $phone, MessageID: " . ($firstResponse['messageid'] ?? 'N/A'));
+                    return true;
+                }
+            }
+            
+            // Handle error response format: {"response-code": 1006, "response-description": "..."}
+            if (isset($result['response-code']) && $result['response-code'] !== 200) {
+                $errorDesc = $result['response-description'] ?? 'Unknown error';
+                error_log("OTP SMS Error: Code {$result['response-code']}, Description: $errorDesc");
+                return false;
             }
         }
 

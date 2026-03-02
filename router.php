@@ -37,7 +37,6 @@ echo '<p>The requested resource was not found on this server.</p>';
 echo '<p>Available endpoints:</p>';
 echo '<ul>';
 echo '<li><a href="/admin/">Admin Dashboard</a></li>';
-echo '<li><a href="/simulator/">USSD Simulator</a></li>';
 echo '<li><a href="/api/ussd.php">USSD API</a></li>';
 echo '</ul>';
 echo '</body></html>';
