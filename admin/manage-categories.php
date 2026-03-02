@@ -500,11 +500,11 @@ $categoriesWithCounts = $stmt->fetchAll();
         // Pending deletions storage
         const pendingDeletions = new Map();
         
-        // Delete category with 30-second undo
+        // Delete category with 10-second undo
         function deleteCategory(categoryId, categoryName, nomineeCount) {
             const warning = nomineeCount > 0 
-                ? `⚠️ WARNING: This will delete the category "${categoryName}" and ALL ${nomineeCount} nominees permanently!\n\nThis action cannot be undone after 30 seconds.`
-                : `⚠️ WARNING: This will delete the category "${categoryName}" permanently!\n\nThis action cannot be undone after 30 seconds.`;
+                ? `⚠️ WARNING: This will delete the category "${categoryName}" and ALL ${nomineeCount} nominees permanently!\n\nThis action cannot be undone after 10 seconds.`
+                : `⚠️ WARNING: This will delete the category "${categoryName}" permanently!\n\nThis action cannot be undone after 10 seconds.`;
             
             if (!confirm(warning)) {
                 return;
@@ -515,7 +515,7 @@ $categoriesWithCounts = $stmt->fetchAll();
             const timer = setTimeout(() => {
                 executeCategoryDeletion(categoryId);
                 pendingDeletions.delete(deletionId);
-            }, 30000);
+            }, 10000);
             
             pendingDeletions.set(deletionId, {
                 type: 'category',
@@ -526,7 +526,7 @@ $categoriesWithCounts = $stmt->fetchAll();
             });
             
             // Show undo notification
-            showUndoNotification(deletionId, `Category "${categoryName}" will be deleted in 30 seconds...`, 'category');
+            showUndoNotification(deletionId, `Category "${categoryName}" will be deleted in 10 seconds...`, 'category');
         }
         
         // Execute category deletion
@@ -541,9 +541,9 @@ $categoriesWithCounts = $stmt->fetchAll();
             form.submit();
         }
         
-        // Delete nominee with 30-second undo
+        // Delete nominee with 10-second undo
         function deleteNominee(nomineeId, categoryId, nomineeName = '') {
-            const warning = `⚠️ WARNING: This will delete the nominee "${nomineeName || 'this nominee'}" permanently!\n\nThis action cannot be undone after 30 seconds.`;
+            const warning = `⚠️ WARNING: This will delete the nominee "${nomineeName || 'this nominee'}" permanently!\n\nThis action cannot be undone after 10 seconds.`;
             
             if (!confirm(warning)) {
                 return;
@@ -572,7 +572,7 @@ $categoriesWithCounts = $stmt->fetchAll();
             const timer = setTimeout(() => {
                 executeNomineeDeletion(nomineeId, categoryId);
                 pendingDeletions.delete(deletionId);
-            }, 30000);
+            }, 10000);
             
             pendingDeletions.set(deletionId, {
                 type: 'nominee',
@@ -584,7 +584,7 @@ $categoriesWithCounts = $stmt->fetchAll();
             });
             
             // Show undo notification
-            showUndoNotification(deletionId, `Nominee "${nomineeName}" will be deleted in 30 seconds...`, 'nominee');
+            showUndoNotification(deletionId, `Nominee "${nomineeName}" will be deleted in 10 seconds...`, 'nominee');
         }
         
         // Execute nominee deletion
