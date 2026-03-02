@@ -85,6 +85,11 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } else {
             // No OTP required, login complete
+            // Check if password change is required
+            if ($loginResult['must_change_password'] ?? false) {
+                header('Location: /admin/change-password.php');
+                exit;
+            }
             header('Location: /admin/dashboard.php');
             exit;
         }

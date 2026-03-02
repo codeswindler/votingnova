@@ -26,12 +26,6 @@ Auth::requireLogin();
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2><i class="bi bi-people"></i> User Management</h2>
                     <div class="d-flex gap-2">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="globalOTPToggle" onchange="toggleGlobalOTP()">
-                            <label class="form-check-label" for="globalOTPToggle">
-                                <strong>Global OTP</strong>
-                            </label>
-                        </div>
                         <button class="btn btn-primary" onclick="showCreateUserModal()">
                             <i class="bi bi-person-plus"></i> Add User
                         </button>
@@ -155,7 +149,6 @@ Auth::requireLogin();
         document.addEventListener('DOMContentLoaded', function() {
             userModal = new bootstrap.Modal(document.getElementById('userModal'));
             loadUsers();
-            loadOTPStatus();
         });
 
         function loadUsers() {
@@ -399,42 +392,6 @@ Auth::requireLogin();
                 });
         }
 
-        function toggleGlobalOTP() {
-            const enabled = document.getElementById('globalOTPToggle').checked;
-            
-            const formData = new FormData();
-            formData.append('action', 'toggle_global_otp');
-            formData.append('enabled', enabled ? 1 : 0);
-
-            fetch('/api/admin-users-api.php', {
-                method: 'POST',
-                body: formData
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message);
-                    } else {
-                        alert('Error: ' + (data.error || 'Unknown error'));
-                        document.getElementById('globalOTPToggle').checked = !enabled;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    document.getElementById('globalOTPToggle').checked = !enabled;
-                });
-        }
-
-        function loadOTPStatus() {
-            fetch('/api/admin-users-api.php?action=get_otp_status')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('globalOTPToggle').checked = data.global_otp_enabled;
-                })
-                .catch(error => {
-                    console.error('Error loading OTP status:', error);
-                });
-        }
 
         function generateCredentials(userId) {
             if (!confirm('Generate and send login credentials to this user via SMS?')) {

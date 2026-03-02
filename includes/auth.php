@@ -17,11 +17,24 @@ class Auth {
 
     /**
      * Require login - redirect if not logged in
+     * Also checks if password change is required
      */
     public static function requireLogin() {
         if (!self::isLoggedIn()) {
             header('Location: /admin/login.php');
             exit;
+        }
+        
+        // Check if password change is required (for system users)
+        if (isset($_SESSION['must_change_password']) && $_SESSION['must_change_password'] && 
+            isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'system_user') {
+            // Allow access to change-password page
+            $currentPage = $_SERVER['REQUEST_URI'] ?? '';
+            if (strpos($currentPage, '/admin/change-password.php') === false && 
+                strpos($currentPage, '/admin/logout.php') === false) {
+                header('Location: /admin/change-password.php');
+                exit;
+            }
         }
     }
 
@@ -87,10 +100,8 @@ class Auth {
         $systemUser = $stmt->fetch();
 
         if ($systemUser && $systemUser['password_hash'] && password_verify($password, $systemUser['password_hash'])) {
-            // Check if OTP is enabled globally and for this user
-            require_once __DIR__ . '/otp-service.php';
-            $otpService = new OTPService();
-            $otpEnabled = $otpService->isOTPEnabled() && $systemUser['otp_enabled'];
+            // Check if OTP is enabled for this user (per-user control only)
+            $otpEnabled = (bool)$systemUser['otp_enabled'];
             
             $fullName = trim(($systemUser['first_name'] ?? '') . ' ' . ($systemUser['last_name'] ?? ''));
             $displayName = $systemUser['first_name'] ?? 'User';

@@ -35,14 +35,6 @@ switch ($action) {
         toggleUserOTP($db);
         break;
     
-    case 'toggle_global_otp':
-        toggleGlobalOTP($db);
-        break;
-    
-    case 'get_otp_status':
-        getOTPStatus($db);
-        break;
-    
     case 'generate_credentials':
         generateCredentials($db);
         break;
@@ -259,34 +251,6 @@ function toggleUserOTP($db) {
         http_response_code(500);
         echo json_encode(['error' => 'Failed to update OTP setting: ' . $e->getMessage()]);
     }
-}
-
-function toggleGlobalOTP($db) {
-    $enabled = isset($_POST['enabled']) ? (int)$_POST['enabled'] : 0;
-    $adminId = Auth::getUserId();
-    
-    try {
-        $otpService = new OTPService();
-        $otpService->toggleOTP($enabled, $adminId);
-        
-        echo json_encode([
-            'success' => true,
-            'message' => 'Global OTP setting updated successfully',
-            'enabled' => $enabled
-        ]);
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to update global OTP setting: ' . $e->getMessage()]);
-    }
-}
-
-function getOTPStatus($db) {
-    $otpService = new OTPService();
-    $globalEnabled = $otpService->isOTPEnabled();
-    
-    echo json_encode([
-        'global_otp_enabled' => $globalEnabled
-    ]);
 }
 
 function generateCredentials($db) {

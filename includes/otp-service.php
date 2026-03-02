@@ -24,43 +24,10 @@ class OTPService {
     }
 
     /**
-     * Check if OTP is enabled globally
-     */
-    public function isOTPEnabled() {
-        $stmt = $this->db->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'otp_enabled'");
-        $stmt->execute();
-        $result = $stmt->fetch();
-        
-        return $result && $result['setting_value'] === '1';
-    }
-
-    /**
-     * Toggle OTP on/off globally
-     */
-    public function toggleOTP($enabled, $adminId) {
-        $stmt = $this->db->prepare("
-            INSERT INTO system_settings (setting_key, setting_value, description, updated_by)
-            VALUES ('otp_enabled', ?, 'Enable/Disable OTP for user login', ?)
-            ON DUPLICATE KEY UPDATE 
-                setting_value = ?,
-                updated_by = ?,
-                updated_at = NOW()
-        ");
-        $value = $enabled ? '1' : '0';
-        $stmt->execute([$value, $adminId, $value, $adminId]);
-        return true;
-    }
-
-    /**
      * Generate and send OTP to user
      */
     public function generateAndSendOTP($userId, $phone, $purpose = 'login') {
-        // Check if OTP is enabled globally
-        if (!$this->isOTPEnabled()) {
-            return ['success' => false, 'message' => 'OTP is currently disabled'];
-        }
-
-        // Check if user has OTP enabled
+        // Check if user has OTP enabled (per-user control only)
         $userStmt = $this->db->prepare("SELECT otp_enabled FROM system_users WHERE id = ?");
         $userStmt->execute([$userId]);
         $user = $userStmt->fetch();
