@@ -11,7 +11,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=*415#&MSISDN=254712345678&INPUT=",
+          "raw": "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=YOUR_USSD_CODE&MSISDN=254712345678&INPUT=",
           "protocol": "http",
           "host": ["localhost"],
           "port": "8000",
@@ -24,7 +24,7 @@
             },
             {
               "key": "USSDCODE",
-              "value": "*415#",
+              "value": "YOUR_USSD_CODE",
               "description": "USSD code dialed"
             },
             {

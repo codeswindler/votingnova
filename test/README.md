@@ -71,24 +71,26 @@ Edit `config/database.php`:
 
 ### Method 3: cURL Commands
 
+Replace `YOUR_USSD_CODE` with your actual USSD code from `.env` (e.g., `*519*24#`):
+
 ```bash
 # Initial request
-curl "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=*415#&MSISDN=254712345678&INPUT="
+curl "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=YOUR_USSD_CODE&MSISDN=254712345678&INPUT="
 
 # Select category 1
-curl "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=*415#&MSISDN=254712345678&INPUT=1"
+curl "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=YOUR_USSD_CODE&MSISDN=254712345678&INPUT=1"
 
 # Select Male
-curl "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=*415#&MSISDN=254712345678&INPUT=1*1"
+curl "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=YOUR_USSD_CODE&MSISDN=254712345678&INPUT=1*1"
 
 # Select first nominee
-curl "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=*415#&MSISDN=254712345678&INPUT=1*1*1"
+curl "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=YOUR_USSD_CODE&MSISDN=254712345678&INPUT=1*1*1"
 
 # Enter 10 votes
-curl "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=*415#&MSISDN=254712345678&INPUT=1*1*1*10"
+curl "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=YOUR_USSD_CODE&MSISDN=254712345678&INPUT=1*1*1*10"
 
 # Confirm
-curl "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=*415#&MSISDN=254712345678&INPUT=1*1*1*10*1"
+curl "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=YOUR_USSD_CODE&MSISDN=254712345678&INPUT=1*1*1*10*1"
 ```
 
 ## Testing Admin Dashboard
