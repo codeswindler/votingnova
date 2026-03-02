@@ -202,6 +202,17 @@ function deleteUser($db) {
             return;
         }
         
+        // Prevent users from deleting themselves
+        $currentUserId = Auth::getUserId();
+        $currentUserType = $_SESSION['user_type'] ?? null;
+        
+        // Only check for system users (admins can delete system users, but system users can't delete themselves)
+        if ($currentUserType === 'system_user' && $currentUserId == $userId) {
+            http_response_code(400);
+            echo json_encode(['error' => 'You cannot delete your own account. Please contact an administrator.']);
+            return;
+        }
+        
         // Delete user (users can always be deleted - votes are associated with nominees, not users)
         $stmt = $db->prepare("DELETE FROM system_users WHERE id = ?");
         $stmt->execute([$userId]);
