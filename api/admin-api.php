@@ -65,9 +65,9 @@ function getStats($db) {
     $stmt = $db->query("SELECT COUNT(*) as total FROM votes WHERE (transaction_id NOT LIKE 'SIM-%' AND transaction_id NOT LIKE 'SIM-SIM-%') OR transaction_id IS NULL");
     $totalTransactions = $stmt->fetch()['total'] ?? 0;
     
-    // Pending payments - exclude simulated votes (SIM-)
-    $stmt = $db->query("SELECT COUNT(*) as total FROM votes WHERE status = 'pending' AND ((transaction_id NOT LIKE 'SIM-%' AND transaction_id NOT LIKE 'SIM-SIM-%') OR transaction_id IS NULL)");
-    $pendingPayments = $stmt->fetch()['total'] ?? 0;
+    // Today's votes - exclude simulated votes (SIM-)
+    $stmt = $db->query("SELECT SUM(votes_count) as total FROM votes WHERE DATE(created_at) = CURDATE() AND ((transaction_id NOT LIKE 'SIM-%' AND transaction_id NOT LIKE 'SIM-SIM-%') OR transaction_id IS NULL)");
+    $todayVotes = $stmt->fetch()['total'] ?? 0;
     
     // Recent transactions (last 10) - exclude simulated votes (SIM-)
     $stmt = $db->query("
@@ -85,7 +85,7 @@ function getStats($db) {
         'total_votes' => (int)$totalVotes,
         'total_revenue' => (float)$totalRevenue,
         'total_transactions' => (int)$totalTransactions,
-        'pending_payments' => (int)$pendingPayments,
+        'today_votes' => (int)$todayVotes,
         'recent_transactions' => $recentTransactions
     ];
 }

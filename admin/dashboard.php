@@ -81,11 +81,11 @@ Auth::requireLogin();
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h6 class="text-muted mb-1">Pending Payments</h6>
-                                <h3 class="mb-0" id="pendingPayments">0</h3>
+                                <h6 class="text-muted mb-1">Today's Votes</h6>
+                                <h3 class="mb-0" id="todayVotes">0</h3>
                             </div>
                             <div class="stat-icon">
-                                <i class="bi bi-clock-history text-warning"></i>
+                                <i class="bi bi-calendar-day text-info"></i>
                             </div>
                         </div>
                     </div>

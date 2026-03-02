@@ -14,7 +14,7 @@ function loadStats() {
             document.getElementById('totalVotes').textContent = data.total_votes.toLocaleString();
             document.getElementById('totalRevenue').textContent = 'KES ' + parseFloat(data.total_revenue).toLocaleString();
             document.getElementById('totalTransactions').textContent = data.total_transactions.toLocaleString();
-            document.getElementById('pendingPayments').textContent = data.pending_payments;
+            document.getElementById('todayVotes').textContent = data.today_votes.toLocaleString();
             
             // Update recent transactions
             updateRecentTransactions(data.recent_transactions);
