@@ -22,6 +22,11 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="/admin/manage-categories.php">
+                        <i class="bi bi-gear"></i> Manage Categories
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="/admin/transactions.php">
                         <i class="bi bi-list-ul"></i> Transactions
                     </a>
