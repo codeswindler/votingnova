@@ -1,0 +1,161 @@
+{
+  "info": {
+    "name": "USSD Voting System API",
+    "description": "Collection for testing USSD and M-Pesa endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "USSD Callback",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=*415#&MSISDN=254712345678&INPUT=",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "ussd.php"],
+          "query": [
+            {
+              "key": "SESSIONID",
+              "value": "TEST123",
+              "description": "Unique session ID"
+            },
+            {
+              "key": "USSDCODE",
+              "value": "*415#",
+              "description": "USSD code dialed"
+            },
+            {
+              "key": "MSISDN",
+              "value": "254712345678",
+              "description": "Phone number"
+            },
+            {
+              "key": "INPUT",
+              "value": "",
+              "description": "User input (empty for first request)"
+            }
+          ]
+        },
+        "description": "Test initial USSD request"
+      }
+    },
+    {
+      "name": "USSD - Select Category",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=*415#&MSISDN=254712345678&INPUT=1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "ussd.php"],
+          "query": [
+            {
+              "key": "SESSIONID",
+              "value": "TEST123"
+            },
+            {
+              "key": "USSDCODE",
+              "value": "*415#"
+            },
+            {
+              "key": "MSISDN",
+              "value": "254712345678"
+            },
+            {
+              "key": "INPUT",
+              "value": "1",
+              "description": "Category selection (1-12)"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "USSD - Select Gender",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/api/ussd.php?SESSIONID=TEST123&USSDCODE=*415#&MSISDN=254712345678&INPUT=1*1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "ussd.php"],
+          "query": [
+            {
+              "key": "SESSIONID",
+              "value": "TEST123"
+            },
+            {
+              "key": "USSDCODE",
+              "value": "*415#"
+            },
+            {
+              "key": "MSISDN",
+              "value": "254712345678"
+            },
+            {
+              "key": "INPUT",
+              "value": "1*1",
+              "description": "Category*Gender (1=Male, 2=Female)"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "M-Pesa Callback (Test)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"Body\": {\n    \"stkCallback\": {\n      \"MerchantRequestID\": \"TEST123\",\n      \"CheckoutRequestID\": \"TEST_CHECKOUT_123\",\n      \"ResultCode\": 0,\n      \"ResultDesc\": \"The service request is processed successfully.\",\n      \"CallbackMetadata\": {\n        \"Item\": [\n          {\n            \"Name\": \"Amount\",\n            \"Value\": 100\n          },\n          {\n            \"Name\": \"MpesaReceiptNumber\",\n            \"Value\": \"TEST123456\"\n          },\n          {\n            \"Name\": \"TransactionDate\",\n            \"Value\": \"20240101120000\"\n          },\n          {\n            \"Name\": \"PhoneNumber\",\n            \"Value\": 254712345678\n          }\n        ]\n      }\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/mpesa-callback.php",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "mpesa-callback.php"]
+        }
+      }
+    },
+    {
+      "name": "Admin API - Stats",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "PHPSESSID=your_session_id",
+            "description": "Admin session cookie"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/admin-api.php?action=stats",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "admin-api.php"],
+          "query": [
+            {
+              "key": "action",
+              "value": "stats"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Sensitive credentials
+ADMIN_CREDENTIALS.txt
+*.key
+*.pem
+
+# Database dumps
+*.sql
+*.dump
+!database/*.sql
+
+# Logs
+*.log
+logs/
+error_log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Node modules (if any)
+node_modules/
+package-lock.json
+
+# Composer (if any)
+vendor/
+composer.lock
