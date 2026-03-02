@@ -9,30 +9,12 @@ if ! command -v nginx &> /dev/null; then
     apt install -y nginx
 fi
 
-# Create nginx config
+# Create nginx config (HTTP only first, SSL will be added by certbot)
 cat > /etc/nginx/sites-available/voting-nova <<'EOF'
 server {
     listen 80;
     listen [::]:80;
     server_name voting.novotechafrica.co.ke www.voting.novotechafrica.co.ke;
-
-    # Redirect HTTP to HTTPS
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name voting.novotechafrica.co.ke www.voting.novotechafrica.co.ke;
-
-    # SSL certificates (will be set up by Certbot)
-    ssl_certificate /etc/letsencrypt/live/voting.novotechafrica.co.ke/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/voting.novotechafrica.co.ke/privkey.pem;
-    
-    # SSL configuration
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
 
     # Proxy to PHP built-in server
     location / {
@@ -57,21 +39,29 @@ ln -sf /etc/nginx/sites-available/voting-nova /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
 # Test nginx config
-nginx -t
-
-if [ $? -eq 0 ]; then
+if nginx -t 2>&1 | grep -q "test is successful"; then
     echo "✓ Nginx configuration is valid"
+    
+    # Start/restart nginx
+    systemctl restart nginx
+    systemctl enable nginx
+    
+    echo ""
+    echo "✓ Nginx started"
     echo ""
     echo "Next steps:"
-    echo "1. Install SSL certificate:"
+    echo "1. Install SSL certificate (this will automatically configure HTTPS):"
     echo "   sudo certbot --nginx -d voting.novotechafrica.co.ke -d www.voting.novotechafrica.co.ke"
     echo ""
-    echo "2. Start/restart nginx:"
-    echo "   sudo systemctl restart nginx"
-    echo ""
-    echo "3. Update Advanta callback URL to:"
+    echo "2. After SSL is installed, update Advanta callback URL to:"
     echo "   https://voting.novotechafrica.co.ke/api/ussd.php"
+    echo ""
+    echo "3. For now, you can test with HTTP:"
+    echo "   http://voting.novotechafrica.co.ke/api/ussd.php"
 else
-    echo "✗ Nginx configuration has errors. Please fix them first."
+    echo "✗ Nginx configuration has errors:"
+    nginx -t
+    echo ""
+    echo "Please check existing nginx configurations for conflicts."
     exit 1
 fi
