@@ -15,7 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/env.php';
 require_once __DIR__ . '/../includes/mpesa-service.php';
+require_once __DIR__ . '/../includes/paystack-service.php';
 
 $votePrice = 10; // KES per vote - same as USSD
 
@@ -120,8 +122,20 @@ try {
             $amount = $votesCount * $votePrice;
             $sessionRef = 'web-' . uniqid('', true);
 
-            $mpesaService = new MpesaService();
-            $checkoutRequestId = $mpesaService->initiateSTKPush($phone, $amount, $sessionRef);
+            $provider = strtolower(trim(getenv('PAYMENT_PROVIDER') ?: 'mpesa'));
+            $checkoutRequestId = null;
+
+            if ($provider === 'paystack') {
+                $paystack = new PaystackService();
+                $checkoutRequestId = $paystack->initiateCharge($phone, $amount, $sessionRef);
+                if (!$checkoutRequestId) {
+                    $mpesaService = new MpesaService();
+                    $checkoutRequestId = $mpesaService->initiateSTKPush($phone, $amount, $sessionRef);
+                }
+            } else {
+                $mpesaService = new MpesaService();
+                $checkoutRequestId = $mpesaService->initiateSTKPush($phone, $amount, $sessionRef);
+            }
 
             if (!$checkoutRequestId) {
                 http_response_code(502);
@@ -138,7 +152,7 @@ try {
             echo json_encode([
                 'success' => true,
                 'checkout_request_id' => $checkoutRequestId,
-                'message' => 'Please check your phone for M-Pesa STK Push to complete payment.'
+                'message' => 'Please check your phone for the payment prompt to complete payment.'
             ]);
             break;
 
@@ -162,6 +176,18 @@ try {
             ");
             $stmt->execute([$checkoutRequestId]);
             $tx = $stmt->fetch();
+
+            if (!$tx) {
+                $stmt = $db->prepare("SELECT status FROM paystack_transactions WHERE reference = ?");
+                $stmt->execute([$checkoutRequestId]);
+                $pt = $stmt->fetch();
+                if ($pt) {
+                    $tx = [
+                        'status' => $pt['status'] === 'success' ? 'completed' : ($pt['status'] === 'failed' ? 'failed' : 'pending'),
+                        'mpesa_receipt_number' => $pt['status'] === 'success' ? $checkoutRequestId : null
+                    ];
+                }
+            }
 
             if (!$tx) {
                 echo json_encode(['success' => true, 'status' => 'pending', 'message' => 'Waiting for payment.']);

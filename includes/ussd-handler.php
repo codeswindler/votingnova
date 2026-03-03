@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/mpesa-service.php';
+require_once __DIR__ . '/paystack-service.php';
 require_once __DIR__ . '/env.php';
 
 class USSDHandler {
@@ -442,27 +443,33 @@ class USSDHandler {
             return $this->showError("Invalid selection. Please select 1 to confirm or 2 to cancel.");
         }
 
-        // Initiate STK Push
-        $mpesaService = new MpesaService();
-        $checkoutRequestId = $mpesaService->initiateSTKPush(
-            $this->phone,
-            $this->session['amount'],
-            $this->sessionId
-        );
+        // Initiate STK push – Paystack or M-Pesa from env; M-Pesa fallback if Paystack fails
+        $provider = strtolower(trim(getenv('PAYMENT_PROVIDER') ?: 'mpesa'));
+        $checkoutRequestId = null;
+
+        if ($provider === 'paystack') {
+            $paystack = new PaystackService();
+            $ref = 'VOTE-ussd-' . $this->sessionId;
+            $checkoutRequestId = $paystack->initiateCharge($this->phone, $this->session['amount'], $ref);
+            if (!$checkoutRequestId) {
+                $mpesaService = new MpesaService();
+                $checkoutRequestId = $mpesaService->initiateSTKPush($this->phone, $this->session['amount'], $this->sessionId);
+            }
+        } else {
+            $mpesaService = new MpesaService();
+            $checkoutRequestId = $mpesaService->initiateSTKPush($this->phone, $this->session['amount'], $this->sessionId);
+        }
 
         if (!$checkoutRequestId) {
             return $this->showError("Payment initiation failed. Please try again.");
         }
 
-        // Update session with checkout_request_id (vote will be created by callback when payment is confirmed)
         $this->updateSession([
             'state' => 6,
             'checkout_request_id' => $checkoutRequestId
         ]);
 
-        // END the USSD session so user can receive STK push notification
-        // Returning CON keeps the menu open and blocks the STK push from appearing
-        return "END Please check your phone for M-Pesa STK Push to complete payment.";
+        return "END Please check your phone for the payment prompt to complete payment.";
     }
 
     /**
@@ -494,7 +501,7 @@ class USSDHandler {
             return $this->showError("Payment session not found.");
         }
 
-        // Check payment status for real payments - poll from mpesa_transactions table
+        // Check M-Pesa first, then Paystack (reference stored in checkout_request_id)
         $stmt = $this->db->prepare("
             SELECT status, mpesa_receipt_number, result_code, result_desc
             FROM mpesa_transactions 
@@ -502,12 +509,25 @@ class USSDHandler {
         ");
         $stmt->execute([$checkoutRequestId]);
         $transaction = $stmt->fetch();
-        
+        $isPaystack = false;
+
+        if (!$transaction) {
+            $stmt = $this->db->prepare("SELECT status FROM paystack_transactions WHERE reference = ?");
+            $stmt->execute([$checkoutRequestId]);
+            $paystackTx = $stmt->fetch();
+            if ($paystackTx) {
+                $transaction = [
+                    'status' => $paystackTx['status'] === 'success' ? 'completed' : ($paystackTx['status'] === 'failed' ? 'failed' : 'pending'),
+                    'mpesa_receipt_number' => $paystackTx['status'] === 'success' ? $checkoutRequestId : null
+                ];
+                $isPaystack = true;
+            }
+        }
+
         if (!$transaction) {
             return "CON Please complete the payment on your phone...";
         }
 
-        // Check if vote exists (should be created by callback when payment is confirmed)
         $stmt = $this->db->prepare("
             SELECT v.status, v.mpesa_ref, n.name 
             FROM votes v
@@ -517,25 +537,20 @@ class USSDHandler {
         $stmt->execute([$checkoutRequestId]);
         $vote = $stmt->fetch();
 
-        // If transaction is completed, check if vote exists (callback should have created it)
-        if ($transaction['status'] === 'completed' && $transaction['mpesa_receipt_number']) {
+        if ($transaction['status'] === 'completed' && ($transaction['mpesa_receipt_number'] || $isPaystack)) {
             if ($vote && $vote['status'] === 'completed') {
-                // Vote exists and is completed (callback processed it)
                 $message = "Thank you! Your {$this->session['votes_count']} vote(s) for {$vote['name']} have been recorded.";
                 if ($vote['mpesa_ref']) {
                     $message .= " Ref: {$vote['mpesa_ref']}";
                 }
                 return "END " . $message;
-            } else {
-                // Transaction completed but vote not yet created (callback might be delayed)
-                return "CON Payment received. Processing your vote...";
             }
-        } elseif ($transaction['status'] === 'failed') {
-            // Payment failed - no vote created (we only record paid votes)
+            return "CON Payment received. Processing your vote...";
+        }
+        if ($transaction['status'] === 'failed') {
             return "END Payment failed. Please try again.";
         }
 
-        // Payment still pending
         return "CON Please complete the payment on your phone...";
     }
 
