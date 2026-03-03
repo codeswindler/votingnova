@@ -1,17 +1,18 @@
 <?php
 /**
- * Script to create/reset admin user password
+ * Script to create/reset admin user password from .env
  * Run: php fix-admin-password.php
+ * Uses ADMIN_USERNAME and ADMIN_PASSWORD from .env so your env changes apply to the DB.
  */
 
 require_once __DIR__ . '/includes/env.php';
 require_once __DIR__ . '/includes/db.php';
 
-$username = 'admin';
-$password = 'admin123'; // Default password
+$username = getenv('ADMIN_USERNAME') ?: 'admin';
+$password = getenv('ADMIN_PASSWORD') ?: 'admin123';
 
 try {
-    $db = Database::getInstance()->getConnection();
+    $db = getDB();
     
     // Generate password hash
     $passwordHash = password_hash($password, PASSWORD_DEFAULT);

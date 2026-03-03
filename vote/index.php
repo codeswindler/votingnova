@@ -3,6 +3,8 @@
  * Public Online Voting - Unauthenticated
  * Flow: Category → Gender → Nominee → Votes count → Phone → Confirm → STK Push (same as USSD)
  */
+require_once __DIR__ . '/../includes/env.php';
+$ussdCode = getenv('USSD_BASE_CODE') ?: '*519*24#';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -178,6 +180,25 @@
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .ussd-banner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.25rem;
+            background: linear-gradient(135deg, rgba(34, 196, 184, 0.18), rgba(26, 157, 148, 0.12));
+            border: 1px solid rgba(34, 196, 184, 0.5);
+            border-radius: 0.75rem;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--vote-accent);
+        }
+        .ussd-banner .ussd-code {
+            font-family: ui-monospace, monospace;
+            letter-spacing: 0.05em;
+            color: var(--vote-text);
+        }
     </style>
 </head>
 <body>
@@ -186,6 +207,11 @@
         <div class="vote-hero">
             <h1>Vote Online</h1>
             <p>Murang'a 40 Under 40 Awards — Pay with M-Pesa, same as USSD</p>
+        </div>
+
+        <div class="ussd-banner" role="complementary" aria-label="USSD voting option">
+            <i class="bi bi-phone-fill" aria-hidden="true"></i>
+            <span>You can also vote via USSD: <strong class="ussd-code"><?php echo htmlspecialchars($ussdCode); ?></strong></span>
         </div>
 
         <div class="step-track">
