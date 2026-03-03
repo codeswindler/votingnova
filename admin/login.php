@@ -149,8 +149,10 @@ if (Auth::isLoggedIn()) {
             position: relative;
             overflow: hidden;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 0;
         }
 
         .login-bg {
@@ -435,9 +437,12 @@ if (Auth::isLoggedIn()) {
         <div class="login-bg" id="loginBg"></div>
         <div class="login-bg login-bg-next" id="loginBgNext"></div>
         <div class="login-overlay"></div>
-        <!-- Vote for your champions – visible to all visitors -->
+        <!-- Vote for your champions – above login, never behind -->
         <a href="/vote/" class="vote-champion-cta" style="
+            position: relative;
+            z-index: 2;
             display: block;
+            width: min(420px, 92vw);
             margin-bottom: 20px;
             padding: 14px 20px;
             background: linear-gradient(135deg, rgba(34, 196, 184, 0.25), rgba(26, 157, 148, 0.2));
