@@ -435,6 +435,25 @@ if (Auth::isLoggedIn()) {
         <div class="login-bg" id="loginBg"></div>
         <div class="login-bg login-bg-next" id="loginBgNext"></div>
         <div class="login-overlay"></div>
+        <!-- Vote for your champions – visible to all visitors -->
+        <a href="/vote/" class="vote-champion-cta" style="
+            display: block;
+            margin-bottom: 20px;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, rgba(34, 196, 184, 0.25), rgba(26, 157, 148, 0.2));
+            border: 1px solid rgba(34, 196, 184, 0.5);
+            border-radius: 12px;
+            color: #22c4b8;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            text-align: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        " onmouseover="this.style.background='linear-gradient(135deg, rgba(34, 196, 184, 0.35), rgba(26, 157, 148, 0.3))'; this.style.borderColor='#22c4b8'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='linear-gradient(135deg, rgba(34, 196, 184, 0.25), rgba(26, 157, 148, 0.2))'; this.style.borderColor='rgba(34, 196, 184, 0.5)'; this.style.transform='translateY(0)';">
+            <i class="bi bi-trophy-fill" style="margin-right: 8px;"></i>Vote for your champions
+        </a>
+
         <div class="login-card">
             <div class="login-header">
                 <span class="brand-mark">VS</span>
