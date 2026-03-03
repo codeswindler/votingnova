@@ -209,6 +209,7 @@
         <!-- Step 2: Gender -->
         <div class="card vote-card mb-3" id="step2" style="display: none;">
             <div class="card-body">
+                <button type="button" class="btn btn-link btn-sm p-0 mb-2 link-muted vote-back" data-prev="1"><i class="bi bi-arrow-left me-1"></i>Back</button>
                 <h5 class="card-title">Select gender</h5>
                 <div class="d-grid gap-2">
                     <button type="button" class="btn nominee-btn" data-gender="Male"><i class="bi bi-gender-male me-2"></i>Male</button>
@@ -220,6 +221,7 @@
         <!-- Step 3: Nominees -->
         <div class="card vote-card mb-3" id="step3" style="display: none;">
             <div class="card-body">
+                <button type="button" class="btn btn-link btn-sm p-0 mb-2 link-muted vote-back" data-prev="2"><i class="bi bi-arrow-left me-1"></i>Back</button>
                 <h5 class="card-title">Select nominee</h5>
                 <div id="nominees-list"></div>
                 <div id="nom-loading" class="small" style="display: none; color: var(--vote-muted);">Loading…</div>
@@ -229,6 +231,7 @@
         <!-- Step 4: Vote count -->
         <div class="card vote-card mb-3" id="step4" style="display: none;">
             <div class="card-body">
+                <button type="button" class="btn btn-link btn-sm p-0 mb-2 link-muted vote-back" data-prev="3"><i class="bi bi-arrow-left me-1"></i>Back</button>
                 <h5 class="card-title">Number of votes</h5>
                 <p class="small mb-2" style="color: var(--vote-muted);">KES 10 per vote. Enter 1–1000.</p>
                 <input type="number" class="form-control form-control-lg mb-3" id="votesCount" min="1" max="1000" value="1" placeholder="Votes">
@@ -239,6 +242,7 @@
         <!-- Step 5: Phone -->
         <div class="card vote-card mb-3" id="step5" style="display: none;">
             <div class="card-body">
+                <button type="button" class="btn btn-link btn-sm p-0 mb-2 link-muted vote-back" data-prev="4"><i class="bi bi-arrow-left me-1"></i>Back</button>
                 <h5 class="card-title">M-Pesa phone number</h5>
                 <input type="tel" class="form-control form-control-lg mb-3" id="phone" placeholder="07XX XXX XXX">
                 <button type="button" class="btn btn-vote-primary w-100" id="btnStep5Next">Continue to review</button>
@@ -248,7 +252,7 @@
         <!-- Step 6: Confirm & Pay -->
         <div class="card vote-card mb-3" id="step6" style="display: none;">
             <div class="card-body">
-                <button type="button" class="btn btn-link btn-sm p-0 mb-2 link-muted" id="backToPhone"><i class="bi bi-arrow-left me-1"></i>Change phone</button>
+                <button type="button" class="btn btn-link btn-sm p-0 mb-2 link-muted vote-back" data-prev="5"><i class="bi bi-arrow-left me-1"></i>Back</button>
                 <h5 class="card-title">Confirm & pay</h5>
                 <div class="confirm-row"><span>Nominee</span><span id="confirmNominee"></span></div>
                 <div class="confirm-row"><span>Votes</span><span id="confirmVotes"></span></div>
@@ -509,7 +513,13 @@
         });
 
         // When moving to step 6 from step 5 (e.g. button "Next" or Enter), fill summary
-        document.getElementById('backToPhone').addEventListener('click', () => setStep(5));
+        // Back navigation: go to previous step
+        document.querySelectorAll('.vote-back').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const prev = parseInt(btn.getAttribute('data-prev'), 10);
+                if (prev >= 1 && prev <= 6) setStep(prev);
+            });
+        });
     </script>
 </body>
 </html>
