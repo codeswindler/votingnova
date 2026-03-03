@@ -239,7 +239,7 @@ class MpesaService {
 
         // Create vote if payment successful (only record paid votes)
         if ($status === 'completed') {
-            // Look up USSD session to get vote details
+            // Look up USSD session first, then web vote session
             $stmt = $this->db->prepare("
                 SELECT nominee_id, votes_count, amount 
                 FROM ussd_sessions 
@@ -247,6 +247,16 @@ class MpesaService {
             ");
             $stmt->execute([$checkoutRequestId]);
             $session = $stmt->fetch();
+
+            if (!$session || !$session['nominee_id'] || !$session['votes_count']) {
+                $stmt = $this->db->prepare("
+                    SELECT nominee_id, votes_count, amount 
+                    FROM web_vote_sessions 
+                    WHERE checkout_request_id = ?
+                ");
+                $stmt->execute([$checkoutRequestId]);
+                $session = $stmt->fetch();
+            }
 
             if ($session && $session['nominee_id'] && $session['votes_count']) {
                 // Create vote record directly with 'completed' status (no pending state)
@@ -272,7 +282,7 @@ class MpesaService {
                 ");
                 $stmt->execute([$session['votes_count'], $session['nominee_id']]);
 
-                // Send SMS confirmation with vote details
+                // Send SMS confirmation with vote details (same as USSD)
                 $this->sendSMSConfirmation($checkoutRequestId, $transaction['phone'], $mpesaReceiptNumber, $transaction['amount']);
             } else {
                 error_log("M-Pesa Callback: Session not found or incomplete for checkout: " . $checkoutRequestId);

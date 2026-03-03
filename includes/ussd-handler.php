@@ -401,8 +401,8 @@ class USSDHandler {
     private function handleVotesInput($input) {
         $votesCount = (int)$input;
 
-        if ($votesCount < 1 || $votesCount > 100) {
-            return $this->showError("Please enter a number between 1 and 100.");
+        if ($votesCount < 1 || $votesCount > 1000) {
+            return $this->showError("Please enter a number between 1 and 1000.");
         }
 
         $nomineeId = $this->session['nominee_id'];

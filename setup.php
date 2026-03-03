@@ -53,7 +53,7 @@ try {
     echo "✅ Database connection successful\n";
     
     // Check tables
-    $tables = ['categories', 'nominees', 'votes', 'mpesa_transactions', 'admin_users', 'ussd_sessions'];
+    $tables = ['categories', 'nominees', 'votes', 'mpesa_transactions', 'admin_users', 'ussd_sessions', 'web_vote_sessions'];
     $stmt = $db->query("SHOW TABLES");
     $existingTables = $stmt->fetchAll(PDO::FETCH_COLUMN);
     
