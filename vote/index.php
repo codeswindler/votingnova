@@ -493,11 +493,11 @@ $ussdCode = getenv('USSD_BASE_CODE') ?: '*519*24#';
                     const iv = setInterval(async () => {
                         pollCount++;
                         const st = await getPaymentStatus(state.checkoutRequestId);
-                        document.getElementById('waitStatus').textContent = 'Checking payment…';
                         if (st.status === 'completed') {
                             clearInterval(iv);
                             document.getElementById('waitMessage').textContent = 'Payment successful! Your vote has been recorded.';
                             document.getElementById('waitStatus').textContent = st.receipt ? 'Receipt: ' + st.receipt : '';
+                            document.getElementById('waitStatus').style.color = '';
                             showToast('Your vote has been recorded. Thank you!', 'success');
                             setTimeout(() => {
                                 state = { step: 1, categoryId: null, categoryName: null, gender: null, nomineeId: null, nomineeName: null, votesCount: 1, phone: '', checkoutRequestId: null };
@@ -522,9 +522,17 @@ $ussdCode = getenv('USSD_BASE_CODE') ?: '*519*24#';
                             clearInterval(iv);
                             document.getElementById('waitMessage').textContent = 'Payment failed.';
                             document.getElementById('waitStatus').textContent = st.message || 'Please try again.';
-                            showToast(st.message || 'Payment failed. Please try again.', 'error');
+                            document.getElementById('waitStatus').style.color = 'var(--vote-danger, #e74c3c)';
+                            showToast(st.message || 'Payment failed or cancelled. Please try again.', 'error');
+                        } else if (pollCount >= maxPoll) {
+                            clearInterval(iv);
+                            document.getElementById('waitMessage').textContent = 'Taking too long.';
+                            document.getElementById('waitStatus').textContent = 'If you completed payment, your vote may still be recorded. You can close this page or start over.';
+                            document.getElementById('waitStatus').style.color = 'var(--vote-muted)';
+                            showToast('Payment check timed out. If you paid, your vote may still count.', 'error');
+                        } else {
+                            document.getElementById('waitStatus').textContent = 'Checking payment…';
                         }
-                        if (pollCount >= maxPoll) clearInterval(iv);
                     }, 3000);
                 } else {
                     showErr(res.error || 'Could not start payment.');

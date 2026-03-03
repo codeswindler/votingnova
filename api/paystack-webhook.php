@@ -16,8 +16,12 @@ if ($rawInput === false || $rawInput === '') {
 }
 
 $secret = getenv('PAYSTACK_WEBHOOK_SECRET') ?: '';
-if ($secret === '') {
-    error_log("Paystack Webhook: PAYSTACK_WEBHOOK_SECRET not set");
+if ($secret === '' || strpos($secret, 'http://') === 0 || strpos($secret, 'https://') === 0) {
+    if (strpos($secret ?: '', 'http') === 0) {
+        error_log("Paystack Webhook: PAYSTACK_WEBHOOK_SECRET must be the secret key (from Paystack dashboard), not the webhook URL. Fix your .env.");
+    } else {
+        error_log("Paystack Webhook: PAYSTACK_WEBHOOK_SECRET not set");
+    }
     http_response_code(500);
     echo json_encode(['status' => 'error', 'message' => 'Webhook not configured']);
     exit;

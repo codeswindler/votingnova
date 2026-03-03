@@ -96,7 +96,7 @@ $categories = $stmt->fetchAll();
                                         <th>Votes</th>
                                         <th>Amount</th>
                                         <th>Status</th>
-                                        <th>M-Pesa Ref</th>
+                                        <th>Ref</th>
                                     </tr>
                                 </thead>
                                 <tbody id="transactionsBody">
@@ -178,7 +178,7 @@ $categories = $stmt->fetchAll();
                     <td>${t.votes_count}</td>
                     <td>KES ${parseFloat(t.amount).toLocaleString()}</td>
                     <td><span class="badge bg-${getStatusColor(t.status)}">${t.status}</span></td>
-                    <td>${t.mpesa_ref || '-'}</td>
+                    <td>${t.mpesa_ref || t.transaction_id || '-'}</td>
                 </tr>
             `).join('');
             
