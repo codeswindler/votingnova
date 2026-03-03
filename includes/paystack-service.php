@@ -38,7 +38,7 @@ class PaystackService {
         $amountSubunits = (int) round($amount * 100);
 
         $payload = [
-            'email' => 'vote@voting.local',
+            'email' => $this->config['charge_email'] ?? 'vote@votingnova.app',
             'amount' => (string) $amountSubunits,
             'currency' => 'KES',
             'reference' => preg_replace('/[^a-zA-Z0-9.\-=]/', '', $reference),

@@ -449,7 +449,7 @@ class USSDHandler {
             return $this->showError("Payment amount invalid. Please start again from the main menu.");
         }
 
-        // Initiate STK push – Paystack or M-Pesa from env; M-Pesa fallback if Paystack fails
+        // Initiate STK push – use only the provider set in PAYMENT_PROVIDER (paystack or mpesa)
         $provider = strtolower(trim(getenv('PAYMENT_PROVIDER') ?: 'mpesa'));
         $checkoutRequestId = null;
 
@@ -457,18 +457,13 @@ class USSDHandler {
             $paystack = new PaystackService();
             $ref = 'VOTE-ussd-' . $this->sessionId;
             $checkoutRequestId = $paystack->initiateCharge($this->phone, $amount, $ref);
-            if (!$checkoutRequestId) {
-                error_log("USSD Payment: Paystack initiate failed, falling back to M-Pesa. Phone: " . $this->phone);
-                $mpesaService = new MpesaService();
-                $checkoutRequestId = $mpesaService->initiateSTKPush($this->phone, $amount, $this->sessionId);
-            }
         } else {
             $mpesaService = new MpesaService();
             $checkoutRequestId = $mpesaService->initiateSTKPush($this->phone, $amount, $this->sessionId);
         }
 
         if (!$checkoutRequestId) {
-            error_log("USSD Payment: Both providers failed. PAYMENT_PROVIDER=" . $provider . ", Phone=" . $this->phone . ", Amount=" . $this->session['amount']);
+            error_log("USSD Payment: " . $provider . " initiation failed. Phone=" . $this->phone . ", Amount=" . $this->session['amount']);
             return $this->showError("Payment initiation failed. Please try again.");
         }
 

@@ -128,10 +128,6 @@ try {
             if ($provider === 'paystack') {
                 $paystack = new PaystackService();
                 $checkoutRequestId = $paystack->initiateCharge($phone, $amount, $sessionRef);
-                if (!$checkoutRequestId) {
-                    $mpesaService = new MpesaService();
-                    $checkoutRequestId = $mpesaService->initiateSTKPush($phone, $amount, $sessionRef);
-                }
             } else {
                 $mpesaService = new MpesaService();
                 $checkoutRequestId = $mpesaService->initiateSTKPush($phone, $amount, $sessionRef);
