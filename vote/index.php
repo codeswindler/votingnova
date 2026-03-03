@@ -389,7 +389,7 @@
                         const b = document.createElement('button');
                         b.type = 'button';
                         b.className = 'btn nominee-btn w-100 mb-2';
-                        b.textContent = n.name + (n.votes_count != null ? ' (' + Number(n.votes_count).toLocaleString() + ' votes)' : '');
+                        b.textContent = n.name;
                         b.onclick = () => {
                             state.nomineeId = n.id;
                             state.nomineeName = n.name;
@@ -435,7 +435,7 @@
         // Step 6: confirm and show summary when step is shown
         function onStep6Show() {
             document.getElementById('confirmNominee').textContent = state.nomineeName;
-            document.getElementById('confirmVotes').textContent = state.votesCount;
+            document.getElementById('confirmVotes').textContent = state.votesCount + ' votes';
             document.getElementById('confirmPhone').textContent = state.phone;
             document.getElementById('confirmAmount').textContent = (state.votesCount * VOTE_PRICE).toLocaleString();
         }

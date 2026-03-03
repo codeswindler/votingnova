@@ -56,7 +56,7 @@ try {
                 exit;
             }
             $stmt = $db->prepare("
-                SELECT id, name, gender, votes_count
+                SELECT id, name, gender
                 FROM nominees
                 WHERE category_id = ? AND gender = ?
                 ORDER BY name
