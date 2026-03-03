@@ -12,29 +12,183 @@
     <title>Vote Online - Murang'a 40 Under 40</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
     <style>
-        :root { --vote-primary: #0d6efd; --vote-success: #198754; }
-        body { background: #f0f4f8; min-height: 100vh; padding-bottom: 2rem; }
-        .vote-card { border: none; border-radius: 1rem; box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
-        .step-badge { width: 2rem; height: 2rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; }
-        .step-active { background: var(--vote-primary); color: #fff; }
-        .step-done { background: var(--vote-success); color: #fff; }
-        .step-pending { background: #e9ecef; color: #6c757d; }
-        .nominee-btn { text-align: left; padding: 0.75rem 1rem; border-radius: 0.5rem; }
-        .nominee-btn:hover { background: #e7f1ff; border-color: var(--vote-primary); }
-        .amount-summary { font-size: 1.25rem; font-weight: 600; color: var(--vote-primary); }
+        :root {
+            --vote-bg: #1a1d24;
+            --vote-surface: #23262e;
+            --vote-surface-hover: #2c303a;
+            --vote-border: #3a3f4b;
+            --vote-text: #e8eaed;
+            --vote-muted: #9aa0a8;
+            --vote-accent: #22c4b8;
+            --vote-accent-hover: #2dd9cc;
+            --vote-success: #34d399;
+            --vote-danger: #f87171;
+            --vote-shadow: 0 8px 32px rgba(0,0,0,0.35);
+        }
+        body {
+            font-family: 'DM Sans', -apple-system, sans-serif;
+            background: var(--vote-bg);
+            color: var(--vote-text);
+            min-height: 100vh;
+            padding-bottom: 3rem;
+        }
+        .vote-container { max-width: 440px; margin: 0 auto; padding: 1.5rem 1rem; }
+        .vote-hero {
+            text-align: center;
+            margin-bottom: 1.75rem;
+        }
+        .vote-hero h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--vote-text);
+            letter-spacing: -0.02em;
+        }
+        .vote-hero p {
+            color: var(--vote-muted);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        .step-track {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding: 0 0.25rem;
+        }
+        .step-track::before {
+            content: '';
+            position: absolute;
+            left: 1rem;
+            right: 1rem;
+            top: 1rem;
+            height: 2px;
+            background: var(--vote-border);
+            z-index: 0;
+        }
+        .step-track { position: relative; }
+        .step-badge {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.75rem;
+            z-index: 1;
+            transition: background 0.2s, color 0.2s;
+        }
+        .step-active { background: var(--vote-accent); color: var(--vote-bg); }
+        .step-done { background: var(--vote-success); color: var(--vote-bg); }
+        .step-pending { background: var(--vote-surface); color: var(--vote-muted); border: 1px solid var(--vote-border); }
+        .vote-card {
+            background: var(--vote-surface);
+            border: 1px solid var(--vote-border);
+            border-radius: 1rem;
+            box-shadow: var(--vote-shadow);
+            margin-bottom: 1rem;
+        }
+        .vote-card .card-body { padding: 1.25rem 1.25rem; }
+        .vote-card .card-title {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--vote-text);
+            margin-bottom: 1rem;
+        }
+        .nominee-btn {
+            text-align: left;
+            padding: 0.85rem 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--vote-border);
+            background: var(--vote-surface);
+            color: var(--vote-text);
+            font-weight: 500;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .nominee-btn:hover {
+            background: var(--vote-surface-hover);
+            border-color: var(--vote-accent);
+            color: var(--vote-accent);
+        }
+        .btn-vote-primary {
+            background: var(--vote-accent);
+            color: var(--vote-bg);
+            border: none;
+            font-weight: 600;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.75rem;
+        }
+        .btn-vote-primary:hover { background: var(--vote-accent-hover); color: var(--vote-bg); }
+        .btn-vote-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+        .form-control, .form-control:focus {
+            background: var(--vote-bg);
+            border: 1px solid var(--vote-border);
+            color: var(--vote-text);
+            border-radius: 0.75rem;
+        }
+        .form-control::placeholder { color: var(--vote-muted); }
+        .form-control:focus { border-color: var(--vote-accent); box-shadow: 0 0 0 3px rgba(34,196,184,0.2); }
+        .amount-summary {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--vote-accent);
+        }
+        .confirm-row { display: flex; justify-content: space-between; padding: 0.4rem 0; font-size: 0.9375rem; }
+        .confirm-row span:last-child { color: var(--vote-muted); font-weight: 500; }
+        .link-muted { color: var(--vote-muted); font-size: 0.8125rem; text-decoration: none; }
+        .link-muted:hover { color: var(--vote-accent); }
         #step-waiting { display: none; }
+        .wait-spinner { color: var(--vote-accent); width: 2.5rem; height: 2.5rem; }
+        .toast-zone {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            pointer-events: none;
+        }
+        .vote-toast {
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1.25rem;
+            border-radius: 0.75rem;
+            background: var(--vote-surface);
+            border: 1px solid var(--vote-border);
+            box-shadow: var(--vote-shadow);
+            min-width: 280px;
+            max-width: 90vw;
+            animation: toastIn 0.3s ease;
+        }
+        .vote-toast.toast-error { border-left: 4px solid var(--vote-danger); }
+        .vote-toast.toast-success { border-left: 4px solid var(--vote-success); }
+        .vote-toast .toast-icon { font-size: 1.25rem; flex-shrink: 0; }
+        .vote-toast.toast-error .toast-icon { color: var(--vote-danger); }
+        .vote-toast.toast-success .toast-icon { color: var(--vote-success); }
+        .vote-toast .toast-msg { font-size: 0.9375rem; color: var(--vote-text); }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
-    <div class="container py-4" style="max-width: 480px;">
-        <div class="text-center mb-4">
-            <h1 class="h4 mb-1">Vote Online</h1>
-            <p class="text-muted small">Murang'a 40 Under 40 Awards — same as USSD, pay via M-Pesa</p>
+    <div id="toast-zone" class="toast-zone" aria-live="polite"></div>
+    <div class="vote-container">
+        <div class="vote-hero">
+            <h1>Vote Online</h1>
+            <p>Murang'a 40 Under 40 Awards — Pay with M-Pesa, same as USSD</p>
         </div>
 
-        <!-- Step indicators -->
-        <div class="d-flex justify-content-between mb-3 small">
+        <div class="step-track">
             <span class="step-badge step-active" id="s1">1</span>
             <span class="step-badge step-pending" id="s2">2</span>
             <span class="step-badge step-pending" id="s3">3</span>
@@ -48,7 +202,7 @@
             <div class="card-body">
                 <h5 class="card-title">Select category</h5>
                 <div id="categories-list"></div>
-                <div id="cat-loading" class="text-muted small">Loading…</div>
+                <div id="cat-loading" class="small" style="color: var(--vote-muted);">Loading…</div>
             </div>
         </div>
 
@@ -57,8 +211,8 @@
             <div class="card-body">
                 <h5 class="card-title">Select gender</h5>
                 <div class="d-grid gap-2">
-                    <button type="button" class="btn btn-outline-primary nominee-btn" data-gender="Male">Male</button>
-                    <button type="button" class="btn btn-outline-primary nominee-btn" data-gender="Female">Female</button>
+                    <button type="button" class="btn nominee-btn" data-gender="Male"><i class="bi bi-gender-male me-2"></i>Male</button>
+                    <button type="button" class="btn nominee-btn" data-gender="Female"><i class="bi bi-gender-female me-2"></i>Female</button>
                 </div>
             </div>
         </div>
@@ -68,7 +222,7 @@
             <div class="card-body">
                 <h5 class="card-title">Select nominee</h5>
                 <div id="nominees-list"></div>
-                <div id="nom-loading" class="text-muted small" style="display: none;">Loading…</div>
+                <div id="nom-loading" class="small" style="display: none; color: var(--vote-muted);">Loading…</div>
             </div>
         </div>
 
@@ -76,9 +230,9 @@
         <div class="card vote-card mb-3" id="step4" style="display: none;">
             <div class="card-body">
                 <h5 class="card-title">Number of votes</h5>
-                <p class="text-muted small">KES 10 per vote. Enter 1–1000.</p>
-                <input type="number" class="form-control form-control-lg mb-2" id="votesCount" min="1" max="1000" value="1" placeholder="Votes">
-                <button type="button" class="btn btn-primary w-100" id="btnStep4Next">Next</button>
+                <p class="small mb-2" style="color: var(--vote-muted);">KES 10 per vote. Enter 1–1000.</p>
+                <input type="number" class="form-control form-control-lg mb-3" id="votesCount" min="1" max="1000" value="1" placeholder="Votes">
+                <button type="button" class="btn btn-vote-primary w-100" id="btnStep4Next">Next</button>
             </div>
         </div>
 
@@ -86,35 +240,38 @@
         <div class="card vote-card mb-3" id="step5" style="display: none;">
             <div class="card-body">
                 <h5 class="card-title">M-Pesa phone number</h5>
-                <input type="tel" class="form-control form-control-lg mb-2" id="phone" placeholder="07XX XXX XXX">
-                <button type="button" class="btn btn-primary w-100" id="btnStep5Next">Continue to review</button>
+                <input type="tel" class="form-control form-control-lg mb-3" id="phone" placeholder="07XX XXX XXX">
+                <button type="button" class="btn btn-vote-primary w-100" id="btnStep5Next">Continue to review</button>
             </div>
         </div>
 
         <!-- Step 6: Confirm & Pay -->
         <div class="card vote-card mb-3" id="step6" style="display: none;">
             <div class="card-body">
-                <button type="button" class="btn btn-link btn-sm p-0 mb-2 text-muted" id="backToPhone">← Change phone</button>
+                <button type="button" class="btn btn-link btn-sm p-0 mb-2 link-muted" id="backToPhone"><i class="bi bi-arrow-left me-1"></i>Change phone</button>
                 <h5 class="card-title">Confirm & pay</h5>
-                <p class="mb-1"><strong>Nominee:</strong> <span id="confirmNominee"></span></p>
-                <p class="mb-1"><strong>Votes:</strong> <span id="confirmVotes"></span></p>
-                <p class="mb-1"><strong>Phone:</strong> <span id="confirmPhone"></span></p>
-                <p class="amount-summary mb-3">Total: KES <span id="confirmAmount"></span></p>
-                <button type="button" class="btn btn-primary btn-lg w-100" id="btnPay">Pay with M-Pesa</button>
+                <div class="confirm-row"><span>Nominee</span><span id="confirmNominee"></span></div>
+                <div class="confirm-row"><span>Votes</span><span id="confirmVotes"></span></div>
+                <div class="confirm-row"><span>Phone</span><span id="confirmPhone"></span></div>
+                <div class="confirm-row mt-2 pt-2" style="border-top: 1px solid var(--vote-border);">
+                    <span>Total</span>
+                    <span class="amount-summary">KES <span id="confirmAmount"></span></span>
+                </div>
+                <button type="button" class="btn btn-vote-primary btn-lg w-100 mt-3" id="btnPay"><i class="bi bi-phone me-2"></i>Pay with M-Pesa</button>
             </div>
         </div>
 
         <!-- Waiting for payment -->
         <div class="card vote-card mb-3" id="step-waiting">
             <div class="card-body text-center py-4">
-                <div class="spinner-border text-primary mb-2" role="status"></div>
-                <p class="mb-1" id="waitMessage">Check your phone for M-Pesa STK Push to complete payment.</p>
-                <p class="small text-muted" id="waitStatus"></p>
+                <div class="spinner-border wait-spinner mb-3" role="status"></div>
+                <p class="mb-1 fw-medium" id="waitMessage">Check your phone for M-Pesa STK Push to complete payment.</p>
+                <p class="small mt-1" id="waitStatus" style="color: var(--vote-muted);"></p>
             </div>
         </div>
 
-        <p class="text-center small text-muted mt-3">
-            <a href="/admin/">Admin</a>
+        <p class="text-center mt-4">
+            <a href="/admin/" class="link-muted">Admin</a>
         </p>
     </div>
 
@@ -176,8 +333,23 @@
             return r.json();
         }
 
+        function showToast(msg, type) {
+            type = type || 'error';
+            const zone = document.getElementById('toast-zone');
+            const el = document.createElement('div');
+            el.className = 'vote-toast toast-' + type;
+            el.setAttribute('role', 'alert');
+            const icon = type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill';
+            el.innerHTML = '<span class="toast-icon"><i class="bi ' + icon + '"></i></span><span class="toast-msg">' + (msg || (type === 'success' ? 'Done.' : 'Something went wrong. Please try again.')) + '</span>';
+            zone.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(-6px)';
+                setTimeout(() => el.remove(), 300);
+            }, 4000);
+        }
         function showErr(msg) {
-            alert(msg || 'Something went wrong. Please try again.');
+            showToast(msg || 'Something went wrong. Please try again.', 'error');
         }
 
         // Step 1: categories
@@ -188,7 +360,7 @@
             (cats || []).forEach(c => {
                 const b = document.createElement('button');
                 b.type = 'button';
-                b.className = 'btn btn-outline-primary nominee-btn w-100 mb-2';
+                b.className = 'btn nominee-btn w-100 mb-2';
                 b.textContent = c.name;
                 b.onclick = () => {
                     state.categoryId = c.id;
@@ -197,7 +369,7 @@
                 };
                 list.appendChild(b);
             });
-            if (!(cats && cats.length)) list.innerHTML = '<p class="text-muted">No categories available.</p>';
+            if (!(cats && cats.length)) list.innerHTML = '<p class="small" style="color: var(--vote-muted);">No categories available.</p>';
         }).catch(e => {
             document.getElementById('cat-loading').textContent = 'Error loading categories.';
             showErr(e.message);
@@ -216,7 +388,7 @@
                     (nominees || []).forEach(n => {
                         const b = document.createElement('button');
                         b.type = 'button';
-                        b.className = 'btn btn-outline-primary nominee-btn w-100 mb-2';
+                        b.className = 'btn nominee-btn w-100 mb-2';
                         b.textContent = n.name + (n.votes_count != null ? ' (' + Number(n.votes_count).toLocaleString() + ' votes)' : '');
                         b.onclick = () => {
                             state.nomineeId = n.id;
@@ -225,7 +397,7 @@
                         };
                         list.appendChild(b);
                     });
-                    if (!(nominees && nominees.length)) list.innerHTML = '<p class="text-muted">No nominees in this category.</p>';
+                    if (!(nominees && nominees.length)) list.innerHTML = '<p class="small" style="color: var(--vote-muted);">No nominees in this category.</p>';
                 }).catch(e => {
                     document.getElementById('nom-loading').textContent = 'Error loading nominees.';
                     showErr(e.message);
@@ -296,6 +468,7 @@
                             clearInterval(iv);
                             document.getElementById('waitMessage').textContent = 'Payment successful! Your vote has been recorded.';
                             document.getElementById('waitStatus').textContent = st.receipt ? 'Receipt: ' + st.receipt : '';
+                            showToast('Your vote has been recorded. Thank you!', 'success');
                             setTimeout(() => {
                                 state = { step: 1, categoryId: null, categoryName: null, gender: null, nomineeId: null, nomineeName: null, votesCount: 1, phone: '', checkoutRequestId: null };
                                 setStep(1);
@@ -308,7 +481,7 @@
                                     (cats || []).forEach(c => {
                                         const b = document.createElement('button');
                                         b.type = 'button';
-                                        b.className = 'btn btn-outline-primary nominee-btn w-100 mb-2';
+                                        b.className = 'btn nominee-btn w-100 mb-2';
                                         b.textContent = c.name;
                                         b.onclick = () => { state.categoryId = c.id; state.categoryName = c.name; setStep(2); };
                                         list.appendChild(b);
@@ -319,6 +492,7 @@
                             clearInterval(iv);
                             document.getElementById('waitMessage').textContent = 'Payment failed.';
                             document.getElementById('waitStatus').textContent = st.message || 'Please try again.';
+                            showToast(st.message || 'Payment failed. Please try again.', 'error');
                         }
                         if (pollCount >= maxPoll) clearInterval(iv);
                     }, 3000);
