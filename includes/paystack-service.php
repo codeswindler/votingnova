@@ -31,17 +31,19 @@ class PaystackService {
         } elseif (substr($phone, 0, 3) !== '254') {
             $phone = '254' . $phone;
         }
+        // Paystack Kenya M-Pesa docs: phone must be with country code, e.g. +254710000000
+        $phoneForPaystack = '+' . $phone;
 
-        // Paystack amount in subunits (100 = 1.00 KES)
+        // Paystack amount in subunits (100 = 1.00 KES); API accepts string
         $amountSubunits = (int) round($amount * 100);
 
         $payload = [
             'email' => 'vote@voting.local',
-            'amount' => $amountSubunits,
+            'amount' => (string) $amountSubunits,
             'currency' => 'KES',
-            'reference' => $reference,
+            'reference' => preg_replace('/[^a-zA-Z0-9.\-=]/', '', $reference),
             'mobile_money' => [
-                'phone' => $phone,
+                'phone' => $phoneForPaystack,
                 'provider' => 'mpesa'
             ]
         ];
@@ -63,17 +65,22 @@ class PaystackService {
         curl_close($ch);
 
         if ($httpCode !== 200) {
-            error_log("Paystack Charge HTTP $httpCode: " . $response);
+            error_log("Paystack Charge HTTP $httpCode: " . substr($response, 0, 500));
             return null;
         }
 
         $data = json_decode($response, true);
+        if (!is_array($data)) {
+            error_log("Paystack Charge: Invalid JSON response");
+            return null;
+        }
         $ok = $data['status'] ?? false;
-        $ref = $data['data']['reference'] ?? $reference;
-        $dataStatus = $data['data']['status'] ?? '';
+        $dataObj = $data['data'] ?? [];
+        $ref = is_array($dataObj) ? ($dataObj['reference'] ?? $reference) : $reference;
+        $dataStatus = is_array($dataObj) ? ($dataObj['status'] ?? '') : '';
 
         if (!$ok || $dataStatus === 'failed') {
-            error_log("Paystack Charge failed: " . $response);
+            error_log("Paystack Charge rejected: status=" . ($ok ? 'true' : 'false') . ", data.status=" . $dataStatus . ", message=" . ($data['message'] ?? ''));
             return null;
         }
         // Accept success, send_otp, otp, pending – webhook will send charge.success when user completes payment

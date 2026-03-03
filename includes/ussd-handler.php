@@ -443,6 +443,12 @@ class USSDHandler {
             return $this->showError("Invalid selection. Please select 1 to confirm or 2 to cancel.");
         }
 
+        $amount = isset($this->session['amount']) ? (float) $this->session['amount'] : 0;
+        if ($amount <= 0) {
+            error_log("USSD Payment: Invalid amount in session: " . json_encode($this->session['amount'] ?? null));
+            return $this->showError("Payment amount invalid. Please start again from the main menu.");
+        }
+
         // Initiate STK push – Paystack or M-Pesa from env; M-Pesa fallback if Paystack fails
         $provider = strtolower(trim(getenv('PAYMENT_PROVIDER') ?: 'mpesa'));
         $checkoutRequestId = null;
@@ -450,17 +456,19 @@ class USSDHandler {
         if ($provider === 'paystack') {
             $paystack = new PaystackService();
             $ref = 'VOTE-ussd-' . $this->sessionId;
-            $checkoutRequestId = $paystack->initiateCharge($this->phone, $this->session['amount'], $ref);
+            $checkoutRequestId = $paystack->initiateCharge($this->phone, $amount, $ref);
             if (!$checkoutRequestId) {
+                error_log("USSD Payment: Paystack initiate failed, falling back to M-Pesa. Phone: " . $this->phone);
                 $mpesaService = new MpesaService();
-                $checkoutRequestId = $mpesaService->initiateSTKPush($this->phone, $this->session['amount'], $this->sessionId);
+                $checkoutRequestId = $mpesaService->initiateSTKPush($this->phone, $amount, $this->sessionId);
             }
         } else {
             $mpesaService = new MpesaService();
-            $checkoutRequestId = $mpesaService->initiateSTKPush($this->phone, $this->session['amount'], $this->sessionId);
+            $checkoutRequestId = $mpesaService->initiateSTKPush($this->phone, $amount, $this->sessionId);
         }
 
         if (!$checkoutRequestId) {
+            error_log("USSD Payment: Both providers failed. PAYMENT_PROVIDER=" . $provider . ", Phone=" . $this->phone . ", Amount=" . $this->session['amount']);
             return $this->showError("Payment initiation failed. Please try again.");
         }
 
