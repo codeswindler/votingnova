@@ -206,7 +206,7 @@ $ussdCode = getenv('USSD_BASE_CODE') ?: '*519*24#';
     <div class="vote-container">
         <div class="vote-hero">
             <h1>Vote Online</h1>
-            <p>Murang'a 40 Under 40 Awards — Pay with M-Pesa, same as USSD</p>
+            <p>Murang'a 40 Under 40 Awards</p>
         </div>
 
         <div class="ussd-banner" role="complementary" aria-label="USSD voting option">
