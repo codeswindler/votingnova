@@ -117,7 +117,7 @@
                 <i class="bi bi-trophy-fill"></i>
             </div>
             <h1>Vote for your champions</h1>
-            <p>Support your favourites in the Murang'a 40 Under 40 Awards. Your vote counts — Cast yours now!!</p>
+            <p>Support your favourites in the Murang'a 40 Under 40 Awards. Every single vote counts — Cast yours now!!</p>
             <a href="/vote/" class="landing-cta">
                 <i class="bi bi-box-arrow-up-right"></i>
                 Go to voting
