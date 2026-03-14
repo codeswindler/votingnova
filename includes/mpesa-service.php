@@ -315,9 +315,9 @@ class MpesaService {
         $voteDetails = $stmt->fetch();
 
         if ($voteDetails) {
-            $message = "Thank you for voting! You voted {$voteDetails['votes_count']} time(s) for {$voteDetails['nominee_name']} in the {$voteDetails['category_name']} category. Amount: KES " . number_format($amount, 2) . ". Receipt: {$receiptNumber}.";
+            $message = "Thank you for voting! You voted {$voteDetails['votes_count']} time(s) for {$voteDetails['nominee_name']} in the {$voteDetails['category_name']} category";
         } else {
-            $message = "Your vote payment of KES " . number_format($amount, 2) . " was successful. Receipt: {$receiptNumber}. Thank you for voting!";
+            $message = "Thank you for voting!";
         }
         
         $url = $config['sms_api_url'];
