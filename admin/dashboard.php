@@ -85,7 +85,10 @@ Auth::requireLogin();
                                 <h3 class="mb-0" id="todayVotes">0</h3>
                             </div>
                             <div class="stat-icon">
-                                <i class="bi bi-calendar-day text-info"></i>
+                                <div class="bg-info text-white p-2 rounded d-flex flex-column align-items-center" style="min-width: 60px;">
+                                    <i class="bi bi-calendar-day mb-1" style="font-size: 1.2rem; opacity: 1;"></i>
+                                    <small class="fw-bold" style="font-size: 0.8rem; line-height: 1;"><?php echo date('D'); ?></small>
+                                </div>
                             </div>
                         </div>
                     </div>

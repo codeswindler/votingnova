@@ -138,20 +138,8 @@ function deleteNominee($db) {
     }
     
     try {
-        // Check if nominee has votes
-        $stmt = $db->prepare("SELECT COUNT(*) as vote_count FROM votes WHERE nominee_id = ?");
-        $stmt->execute([$nomineeId]);
-        $result = $stmt->fetch();
-        
-        if ($result && $result['vote_count'] > 0) {
-            http_response_code(400);
-            echo json_encode([
-                'error' => 'Cannot delete nominee. This nominee has ' . $result['vote_count'] . ' vote(s). Please remove votes first.'
-            ]);
-            return;
-        }
-        
-        // Delete nominee (only if no votes)
+        // Delete nominee (database has ON DELETE CASCADE on votes table,
+        // so this will also automatically and safely remove associated votes)
         $stmt = $db->prepare("DELETE FROM nominees WHERE id = ?");
         $stmt->execute([$nomineeId]);
         
