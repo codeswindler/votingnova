@@ -85,9 +85,9 @@ Auth::requireLogin();
                                 <h3 class="mb-0" id="todayVotes">0</h3>
                             </div>
                             <div class="stat-icon">
-                                <div class="bg-info text-white p-2 rounded d-flex flex-column align-items-center" style="min-width: 60px;">
-                                    <i class="bi bi-calendar-day mb-1" style="font-size: 1.2rem; opacity: 1;"></i>
-                                    <small class="fw-bold" style="font-size: 0.8rem; line-height: 1;"><?php echo date('D'); ?></small>
+                                <div class="bg-info text-white rounded d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; position: relative;">
+                                    <i class="bi bi-calendar" style="font-size: 2.8rem; line-height: 1; opacity: 0.9;"></i>
+                                    <span class="fw-bold text-uppercase" style="position: absolute; top: 58%; left: 50%; transform: translate(-50%, -50%); font-size: 0.8rem; letter-spacing: -0.2px;"><?php echo date('D'); ?></span>
                                 </div>
                             </div>
                         </div>
